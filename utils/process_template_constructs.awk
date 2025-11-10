@@ -876,8 +876,9 @@ BEGIN {
                 # Check if array exists in ENVIRON (passed from shell)
                 if (array_name in ENVIRON) {
                     array_data = ENVIRON[array_name]
-                    # Parse array data (pipe-separated or newline-separated)
-                    n = split(array_data, items, /\n|\|/)
+                    # Parse array data - split only by newlines, preserve pipe characters within entries
+                    # This allows entries like "key|value|data" to be treated as single items
+                    n = split(array_data, items, /\n/)
                     for (j = 1; j <= n; j++) {
                         if (items[j] != "") {
                             # Set item variable

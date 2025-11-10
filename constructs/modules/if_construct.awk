@@ -61,6 +61,13 @@ function evaluate_if_condition(condition_expr,    condition_value, cond_var, fun
         }
     }
     
+    # Debug: check condition evaluation if DAP_TPL_DEBUG is set
+    if ("DAP_TPL_DEBUG" in ENVIRON && ENVIRON["DAP_TPL_DEBUG"] == "1") {
+        if (condition_expr == "NORMALIZATION_MACROS_DATA" || condition_expr == "TYPE_TO_SELECT_DATA" || condition_expr == "BASIC_TYPES_DATA") {
+            print "DEBUG: evaluate_if_condition(" condition_expr ") = " (condition_value != "" && condition_value != "0" && condition_value != "false" && condition_value != "no" ? "TRUE" : "FALSE") ", value length=" length(condition_value) > "/dev/stderr"
+        }
+    }
+    
     if (condition_value != "" && condition_value != "0" && condition_value != "false" && condition_value != "no") {
         return 1
     }

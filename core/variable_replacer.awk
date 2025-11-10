@@ -13,6 +13,10 @@ function replace_variables(output_line,    replacement_iterations, max_replaceme
     # Check for repeated patterns BEFORE replacement
     output_line = check_repeated_patterns_before_include(output_line)
     
+    # CRITICAL: Restore pipe characters in entire output_line BEFORE matching markers
+    # This prevents \003 from being misinterpreted as field separator during parsing
+    gsub(/\003/, "|", output_line)
+    
     while (match(output_line, /{{[^#\/][^}]*}}/) && replacement_iterations < max_replacements) {
         replacement_iterations++
         
@@ -51,9 +55,12 @@ function replace_variables(output_line,    replacement_iterations, max_replaceme
         func_name = get_func_name(parsed_expr)
         func_arg = get_func_arg(parsed_expr)
         
-        # Get base value from ENVIRON
+        # Get base value from vars array first, then ENVIRON
+        # vars array contains variables set by {{#set}} and for loops
         base_value = ""
-        if (var_name in ENVIRON) {
+        if (var_name in vars) {
+            base_value = vars[var_name]
+        } else if (var_name in ENVIRON) {
             base_value = ENVIRON[var_name]
         }
         

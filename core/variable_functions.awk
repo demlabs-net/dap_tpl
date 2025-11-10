@@ -1,9 +1,11 @@
 # Functions for processing variable functions: split, part, in_list, ne, contains
 # Takes variable name, function name, function argument, and base value
 # Returns processed value
+# Note: This module uses ENVIRON and vars arrays directly for compatibility
+# Variable context synchronization is handled by evaluators
 
-# Process split function: splits value by delimiter and stores parts in ENVIRON
-function process_split(var_name, func_arg, base_value,    delimiter, n, parts_array, p) {
+# Process split function: splits value by delimiter and stores parts in ENVIRON and vars
+function process_split(var_name, func_arg, base_value,    delimiter, n, parts_array, p, part_var) {
     delimiter = func_arg
     if (delimiter == "pipe" || delimiter == "|") {
         delimiter = "|"
@@ -11,11 +13,16 @@ function process_split(var_name, func_arg, base_value,    delimiter, n, parts_ar
         delimiter = "\n"
     }
     n = split(base_value, parts_array, delimiter)
-    # Store parts in ENVIRON for later access
+    # Store parts in both ENVIRON and vars for compatibility
+    # Some code uses ENVIRON, some uses vars array
+    # Evaluators will sync with variable_context as needed
     for (p = 1; p <= n; p++) {
-        ENVIRON[var_name "_parts_" (p-1)] = parts_array[p]
+        part_var = var_name "_parts_" (p-1)
+        ENVIRON[part_var] = parts_array[p]
+        vars[part_var] = parts_array[p]
     }
     ENVIRON[var_name "_parts_count"] = n
+    vars[var_name "_parts_count"] = n
     # split function doesn't output anything - it just creates parts
     return ""
 }
@@ -26,7 +33,11 @@ function process_part(var_name, func_arg,    index_str, index_num, part_var) {
     gsub(/^[ \t]+|[ \t]+$/, "", index_str)
     index_num = int(index_str)
     part_var = var_name "_parts_" index_num
-    if (part_var in ENVIRON) {
+    # Check vars first (for variables set by {{#set}}), then ENVIRON
+    # Note: variable_context is checked by evaluators before calling this function
+    if (part_var in vars) {
+        return vars[part_var]
+    } else if (part_var in ENVIRON) {
         return ENVIRON[part_var]
     }
     return ""

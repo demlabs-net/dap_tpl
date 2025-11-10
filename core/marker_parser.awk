@@ -3,9 +3,15 @@
 
 # Parse marker and extract variable expression
 function parse_marker(marker_text,    var_expr) {
+    # CRITICAL: Restore pipe characters (\003 -> |) BEFORE parsing
+    # This ensures correct marker matching and substring extraction
+    # \003 is used as temporary escape for | in content, but must be restored before parsing
+    marker_restored = marker_text
+    gsub(/\003/, "|", marker_restored)
+    
     # Extract var_expr from {{VAR}} or {{VAR|function|args}}
-    if (match(marker_text, /{{[^#\/][^}]*}}/)) {
-        var_expr = substr(marker_text, RSTART + 2, RLENGTH - 4)
+    if (match(marker_restored, /{{[^#\/][^}]*}}/)) {
+        var_expr = substr(marker_restored, RSTART + 2, RLENGTH - 4)
         gsub(/^[ \t]+|[ \t]+$/, "", var_expr)
         return var_expr
     }
