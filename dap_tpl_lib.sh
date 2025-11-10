@@ -188,14 +188,21 @@ prepare_map_macros_data() {
 # Generates data for _DAP_MOCK_NARGS macro generation
 # Usage: prepare_nargs_data MAX_ARGS_COUNT
 # Output: Sets NARGS_SEQUENCE and NARGS_IMPL_PARAMS variables
+# Always generates full implementation (never simplified version)
 prepare_nargs_data() {
     local max_args_count="$1"
     [ -z "$max_args_count" ] && max_args_count=0
     [ "$max_args_count" -lt 0 ] && max_args_count=0
     
-    # Prepare NARGS_SEQUENCE
+    # Always ensure minimum of 2 args for full implementation
+    # This ensures we always have a proper _DAP_MOCK_NARGS_IMPL definition
+    # Minimum needed: _1, _2 for proper macro expansion
+    local effective_max_args=$max_args_count
+    [ "$effective_max_args" -lt 2 ] && effective_max_args=2
+    
+    # Prepare NARGS_SEQUENCE (always includes at least 2, 1, 0)
     NARGS_SEQUENCE=""
-    for i in $(seq $max_args_count -1 0); do
+    for i in $(seq $effective_max_args -1 0); do
         if [ -n "$NARGS_SEQUENCE" ]; then
             NARGS_SEQUENCE="${NARGS_SEQUENCE}, $i"
         else
@@ -203,9 +210,9 @@ prepare_nargs_data() {
         fi
     done
     
-    # Prepare NARGS_IMPL_PARAMS
+    # Prepare NARGS_IMPL_PARAMS (always includes at least _1, _2)
     NARGS_IMPL_PARAMS=""
-    for i in $(seq 1 $max_args_count); do
+    for i in $(seq 1 $effective_max_args); do
         if [ -n "$NARGS_IMPL_PARAMS" ]; then
             NARGS_IMPL_PARAMS="${NARGS_IMPL_PARAMS}, _$i"
         else
