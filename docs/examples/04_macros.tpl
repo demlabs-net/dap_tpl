@@ -1,5 +1,6 @@
 // Example 4: Macros
-// Demonstrates: macro definition, macro calls, macros with parameters, conditional macros
+// Demonstrates: macro definition, macro calls, parameters, conditional macros
+// See: docs/DAP_TPL_GUIDE.md#macros
 
 // Simple macro
 {{#macro HEADER_GUARD}}

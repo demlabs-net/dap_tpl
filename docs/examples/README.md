@@ -2,6 +2,8 @@
 
 This directory contains example templates demonstrating all features of the DAP TPL system.
 
+**See also:** [Learning Path](#learning-path) | [Parent Documentation](../DAP_TPL_GUIDE.md)
+
 ## Examples
 
 1. **01_variables.tpl** - Variables, split, part, trim, contains, ne

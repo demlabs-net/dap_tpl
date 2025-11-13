@@ -1,5 +1,6 @@
 // Example 7: AWK and Shell Sections
-// Demonstrates: embedded code execution
+// Demonstrates: embedded code execution for advanced generation
+// See: docs/DAP_TPL_GUIDE.md#awk-sections
 
 // AWK section for complex processing
 {{AWK:}}

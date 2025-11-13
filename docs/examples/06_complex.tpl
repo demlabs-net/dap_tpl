@@ -1,5 +1,6 @@
-// Example 6: Complex Template
-// Demonstrates: combination of all features
+// Example 6: Complex Real-World Template
+// Demonstrates: combination of all features in production scenario
+// See: docs/DAP_TPL_GUIDE.md#cookbook
 
 {{! This is a comment - it will not appear in output }}
 

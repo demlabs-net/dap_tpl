@@ -2,7 +2,7 @@
 
 Template processing system for DAP SDK test framework with modular architecture and extensible design.
 
-[Русская версия](README.ru.md) | English
+**Languages:** [English](README.md) | [Русский](README.ru.md)
 
 ## Features
 

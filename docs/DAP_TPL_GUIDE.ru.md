@@ -1,6 +1,8 @@
 # Язык обработки шаблонов DAP - Полное руководство
 
-[English](DAP_TPL_GUIDE.md) | Русская версия
+**Языки:** [English](DAP_TPL_GUIDE.md) | [Русский](DAP_TPL_GUIDE.ru.md)
+
+**Навигация:** [🏠 README](../README.ru.md) | [📚 Примеры](examples/)
 
 ## Содержание
 

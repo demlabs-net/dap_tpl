@@ -1,5 +1,6 @@
 // Example 1: Variables and Functions
-// Demonstrates: variable substitution, split, part, trim, contains
+// Demonstrates: variable substitution, split, part, trim, contains, ne
+// See: docs/DAP_TPL_GUIDE.md#variables
 
 // Simple variable
 Module: {{MODULE_NAME}}

@@ -1,5 +1,6 @@
 // Example 2: Conditionals
 // Demonstrates: if/elif/else, comparisons, logical operators
+// See: docs/DAP_TPL_GUIDE.md#conditionals
 
 // Simple boolean check
 {{#if ENABLE_FEATURE}}

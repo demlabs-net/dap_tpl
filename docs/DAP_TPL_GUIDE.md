@@ -1,6 +1,8 @@
 # DAP Template Processing Language - Complete Guide
 
-[Русская версия](DAP_TPL_GUIDE.ru.md) | English
+**Languages:** [English](DAP_TPL_GUIDE.md) | [Русский](DAP_TPL_GUIDE.ru.md)
+
+**Navigation:** [🏠 README](../README.md) | [📚 Examples](examples/)
 
 ## Table of Contents
 
@@ -905,10 +907,11 @@ echo "// Date: $(date)"
 
 | Error | Cause | Solution |
 |-------|-------|----------|
-| "Macro 'X' is not defined" | Macro called before definition | Define macro before calling |
-| "Compiled engine not found" | Missing DAP_TPL_ENGINE_PATH | Set environment variable |
-| "Template file not found" | Wrong path | Check file path |
-| "Maximum include depth exceeded" | Too many nested includes | Reduce include nesting |
+| "Macro 'X' is not defined" | Macro called before definition | Define macro before calling it |
+| "Compiled engine not found" | Missing DAP_TPL_ENGINE_PATH | Set environment variable or rebuild |
+| "Template file not found" | Incorrect file path | Verify file exists and path is correct |
+| "Maximum include depth exceeded" | Too many nested includes (>10) | Reduce include nesting depth |
+| "Syntax error: Unterminated quoted string" | Variable escaping issue | Check special characters in variables |
 
 ### Appendix D: Testing Your Templates
 
@@ -925,6 +928,13 @@ replace_template_placeholders \
 
 # Check output
 cat /tmp/output.txt
+
+# Verify result
+diff expected_output.txt /tmp/output.txt
+
+# Run system tests
+cd tests
+./run.sh
 ```
 
 ---

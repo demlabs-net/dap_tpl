@@ -1,5 +1,6 @@
 // Example 3: Loops
 // Demonstrates: for loops, nested loops, loop with conditionals
+// See: docs/DAP_TPL_GUIDE.md#loops
 
 // Simple loop with pipe-separated list
 {{#set TYPES=int|char*|dap_list_t*}}

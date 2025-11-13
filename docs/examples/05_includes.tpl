@@ -1,5 +1,6 @@
 // Example 5: Includes
-// Demonstrates: template includes, recursive processing, regular file includes
+// Demonstrates: template includes, recursive processing, file includes
+// See: docs/DAP_TPL_GUIDE.md#includes
 
 // Include a template (will be processed recursively)
 {{#include "header_common.tpl"}}
