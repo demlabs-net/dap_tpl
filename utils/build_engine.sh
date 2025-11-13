@@ -8,15 +8,72 @@ set -e
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DAP_TPL_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-# Generate engine file in /tmp with PID for parallel execution support
-ENGINE_FILE="/tmp/dap_tpl_compiled_$$.awk"
 CONSTRUCTS_DIR="${DAP_TPL_DIR}/constructs"
 EXTENSIONS_DIR="${1:-}"
+
+# Generate cache key based on extensions directory
+# Use stable path for caching instead of PID-based to enable reuse
+if [ -n "${EXTENSIONS_DIR}" ]; then
+    # Create hash of extensions directory path for cache key
+    EXTENSIONS_HASH=$(echo -n "${EXTENSIONS_DIR}" | sha256sum | cut -d' ' -f1 | cut -c1-16)
+    ENGINE_FILE="/tmp/dap_tpl_compiled_ext_${EXTENSIONS_HASH}.awk"
+else
+    ENGINE_FILE="/tmp/dap_tpl_compiled_base.awk"
+fi
 
 # Colors
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
+
+# Check if engine cache exists and is up-to-date
+NEED_REBUILD=true
+if [ -f "${ENGINE_FILE}" ]; then
+    ENGINE_TIME=$(stat -c %Y "${ENGINE_FILE}" 2>/dev/null || stat -f %m "${ENGINE_FILE}" 2>/dev/null || echo "0")
+    NEWEST_SOURCE_TIME=0
+    
+    # Check all construct definition files
+    for def_file in "${CONSTRUCTS_DIR}"/*/definition.awk; do
+        if [ -f "$def_file" ]; then
+            FILE_TIME=$(stat -c %Y "$def_file" 2>/dev/null || stat -f %m "$def_file" 2>/dev/null || echo "0")
+            if [ "$FILE_TIME" -gt "$NEWEST_SOURCE_TIME" ]; then
+                NEWEST_SOURCE_TIME=$FILE_TIME
+            fi
+        fi
+    done
+    
+    # Check extensions directory if provided
+    if [ -n "${EXTENSIONS_DIR}" ] && [ -d "${EXTENSIONS_DIR}" ]; then
+        for def_file in "${EXTENSIONS_DIR}"/*/definition.awk; do
+            if [ -f "$def_file" ]; then
+                FILE_TIME=$(stat -c %Y "$def_file" 2>/dev/null || stat -f %m "$def_file" 2>/dev/null || echo "0")
+                if [ "$FILE_TIME" -gt "$NEWEST_SOURCE_TIME" ]; then
+                    NEWEST_SOURCE_TIME=$FILE_TIME
+                fi
+            fi
+        done
+    fi
+    
+    # Check core files that are always included
+    for core_file in "${DAP_TPL_DIR}/core"/*.awk; do
+        if [ -f "$core_file" ]; then
+            FILE_TIME=$(stat -c %Y "$core_file" 2>/dev/null || stat -f %m "$core_file" 2>/dev/null || echo "0")
+            if [ "$FILE_TIME" -gt "$NEWEST_SOURCE_TIME" ]; then
+                NEWEST_SOURCE_TIME=$FILE_TIME
+            fi
+        fi
+    done
+    
+    # Rebuild only if sources are newer than cached engine
+    if [ "$NEWEST_SOURCE_TIME" -le "$ENGINE_TIME" ]; then
+        NEED_REBUILD=false
+    fi
+fi
+
+if [ "$NEED_REBUILD" = false ]; then
+    echo "ENGINE_PATH=${ENGINE_FILE}"
+    exit 0
+fi
 
 echo -e "${GREEN}Building dap_tpl engine...${NC}"
 
@@ -165,6 +222,9 @@ cat > "${ENGINE_FILE}" <<EOF
 @include "core/generic_branch_parser.awk"
 @include "core/conditional_evaluator_helpers.awk"
 
+# SH Section Extensions (core registry - extensions can register here)
+@include "core/sh_section_extensions.awk"
+
 # Dispatch functions must be defined before tokenizer_core and evaluator_core
 # (they are used by those modules)
 EOF
@@ -189,6 +249,9 @@ EOF
 
 # Add @include for each construct
 for construct in "${ALL_CONSTRUCTS[@]}"; do
+    if [ -f "${CONSTRUCTS_DIR}/${construct}/definition.awk" ]; then
+        echo "@include \"constructs/${construct}/definition.awk\"" >> "${ENGINE_FILE}"
+    fi
     if [ -f "${CONSTRUCTS_DIR}/${construct}/tokenizer.awk" ]; then
         echo "@include \"constructs/${construct}/tokenizer.awk\"" >> "${ENGINE_FILE}"
     fi
@@ -200,6 +263,15 @@ for construct in "${ALL_CONSTRUCTS[@]}"; do
     fi
     if [ -f "${CONSTRUCTS_DIR}/${construct}/evaluator.awk" ]; then
         echo "@include \"constructs/${construct}/evaluator.awk\"" >> "${ENGINE_FILE}"
+    fi
+    if [ -f "${CONSTRUCTS_DIR}/${construct}/render.awk" ]; then
+        echo "@include \"constructs/${construct}/render.awk\"" >> "${ENGINE_FILE}"
+    fi
+    if [ -f "${CONSTRUCTS_DIR}/${construct}/process.awk" ]; then
+        echo "@include \"constructs/${construct}/process.awk\"" >> "${ENGINE_FILE}"
+    fi
+    if [ -f "${CONSTRUCTS_DIR}/${construct}/helpers.awk" ]; then
+        echo "@include \"constructs/${construct}/helpers.awk\"" >> "${ENGINE_FILE}"
     fi
     
     # Handle extensions
@@ -221,6 +293,14 @@ for construct in "${ALL_CONSTRUCTS[@]}"; do
             rel_path=$(realpath --relative-to="${DAP_TPL_DIR}" "${EXTENSIONS_DIR}/${construct}/evaluator.awk")
             echo "@include \"${rel_path}\"" >> "${ENGINE_FILE}"
         fi
+        if [ -f "${EXTENSIONS_DIR}/${construct}/render.awk" ]; then
+            rel_path=$(realpath --relative-to="${DAP_TPL_DIR}" "${EXTENSIONS_DIR}/${construct}/render.awk")
+            echo "@include \"${rel_path}\"" >> "${ENGINE_FILE}"
+        fi
+        if [ -f "${EXTENSIONS_DIR}/${construct}/process.awk" ]; then
+            rel_path=$(realpath --relative-to="${DAP_TPL_DIR}" "${EXTENSIONS_DIR}/${construct}/process.awk")
+            echo "@include \"${rel_path}\"" >> "${ENGINE_FILE}"
+        fi
     fi
 done
 
@@ -229,6 +309,21 @@ done
 if [ -n "${EXTENSIONS_DIR}" ] && [ -f "${EXTENSIONS_DIR}/variable_functions.awk" ]; then
     rel_path=$(realpath --relative-to="${DAP_TPL_DIR}" "${EXTENSIONS_DIR}/variable_functions.awk")
     echo "@include \"${rel_path}\"" >> "${ENGINE_FILE}"
+fi
+
+# Include extensions sh_section extensions if extensions directory is provided
+# This allows extensions to register SH section environment variables and filters
+# Try multiple possible paths for sh_section_extensions.awk
+if [ -n "${EXTENSIONS_DIR}" ]; then
+    # Try ../awk/sh_section_extensions.awk relative to extensions dir
+    if [ -f "${EXTENSIONS_DIR}/../awk/sh_section_extensions.awk" ]; then
+        rel_path=$(realpath --relative-to="${DAP_TPL_DIR}" "${EXTENSIONS_DIR}/../awk/sh_section_extensions.awk")
+        echo "@include \"${rel_path}\"" >> "${ENGINE_FILE}"
+    # Try direct path from DAP_TPL_DIR
+    elif [ -f "${DAP_TPL_DIR}/../mocks/lib/awk/sh_section_extensions.awk" ]; then
+        rel_path=$(realpath --relative-to="${DAP_TPL_DIR}" "${DAP_TPL_DIR}/../mocks/lib/awk/sh_section_extensions.awk")
+        echo "@include \"${rel_path}\"" >> "${ENGINE_FILE}"
+    fi
 fi
 
 # Add registry initialization
@@ -318,6 +413,7 @@ EOF
 echo -e "${GREEN}✓ Engine built successfully: ${ENGINE_FILE}${NC}"
 echo "  Constructs included: ${#ALL_CONSTRUCTS[@]}"
 echo "  Output: ${ENGINE_FILE}"
+echo "  Cached for reuse"
 # Output path for scripts to capture
 echo "ENGINE_PATH=${ENGINE_FILE}"
 

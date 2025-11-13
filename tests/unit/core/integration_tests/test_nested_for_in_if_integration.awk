@@ -12,12 +12,16 @@
 @include "constructs/for/definition.awk"
 @include "constructs/set/definition.awk"
 @include "constructs/var/definition.awk"
+@include "constructs/text/definition.awk"
 # Include construct tokenizers
 @include "constructs/if/tokenizer.awk"
 @include "constructs/if/branch_parser.awk"
 @include "constructs/for/tokenizer.awk"
 @include "constructs/set/tokenizer.awk"
+@include "constructs/set/process.awk"
 @include "constructs/var/tokenizer.awk"
+@include "constructs/text/helpers.awk"
+@include "constructs/text/render.awk"
 # Include construct evaluators
 @include "constructs/for/evaluator.awk"
 @include "constructs/if/evaluator.awk"

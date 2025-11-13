@@ -44,7 +44,9 @@ function parse_content(content, parent_id, start_line,    pos, text_start, marke
             if (pos <= length(content)) {
                 remaining = substr(content, pos)
                 if (remaining != "") {
-                    text_token_id = create_token("text", remaining, "")
+                    delete text_metadata
+                    text_metadata["skip_empty_text"] = "1"
+                    text_token_id = create_token("text", remaining, text_metadata)
                     add_child(parent_id, text_token_id)
                 }
             }
@@ -57,7 +59,9 @@ function parse_content(content, parent_id, start_line,    pos, text_start, marke
         if (marker_pos > 1) {
             text_before = substr(content, actual_pos - marker_pos + 1, marker_pos - 1)
             if (text_before != "") {
-                text_token_id = create_token("text", text_before, "")
+                delete text_metadata
+                text_metadata["skip_empty_text"] = "1"
+                text_token_id = create_token("text", text_before, text_metadata)
                 add_child(parent_id, text_token_id)
             }
         }

@@ -5,23 +5,12 @@
 @include "core/token_tree.awk"
 @include "core/variable_context.awk"
 @include "core/renderer.awk"
+@include "constructs/text/helpers.awk"
 @include "constructs/awk_section/execute_awk_script.awk"
 
-function evaluate_awk_section(token_id,    child_count, i, child_id, awk_code, output, text_token_id, metadata, temp_file) {
+function evaluate_awk_section(token_id,    awk_code, output, text_token_id, metadata, temp_file) {
     # Collect AWK code from children (text tokens)
-    awk_code = ""
-    child_count = get_children_count(token_id)
-    
-    for (i = 1; i <= child_count; i++) {
-        child_id = get_child(token_id, i)
-        if (get_token_type(child_id) == "text") {
-            child_text = render_token(child_id)
-            if (awk_code != "") {
-                awk_code = awk_code "\n"
-            }
-            awk_code = awk_code child_text
-        }
-    }
+    awk_code = collect_text_from_children(token_id)
     
     if (awk_code == "") {
         return 0

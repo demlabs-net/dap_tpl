@@ -1,5 +1,30 @@
 # Module for executing AWK scripts with input file support
 # Provides function execute_awk_script_with_input() for running AWK scripts
+# Also provides process_awk_marker() for processing AWK markers in variable expressions
+
+# Process AWK section marker in variable expressions
+# Parameters:
+#   marker_text - marker content (e.g., "AWK:\nBEGIN { ... }")
+# Returns: AWK script output or empty string on error
+function process_awk_marker(marker_text,    awk_code, awk_output) {
+    # Check if this is an AWK section
+    if (substr(marker_text, 1, 4) != "AWK:") {
+        return ""
+    }
+    
+    # Extract AWK code (everything after "AWK:")
+    awk_code = substr(marker_text, 5)
+    gsub(/^[ \t\n]+|[ \t\n]+$/, "", awk_code)  # trim
+    
+    if (awk_code == "") {
+        return ""
+    }
+    
+    # Execute AWK code using execute_awk_script_with_input
+    awk_output = execute_awk_script_with_input(awk_code, "")
+    
+    return awk_output
+}
 
 # Function to execute AWK script with input file and environment variables
 # Parameters:

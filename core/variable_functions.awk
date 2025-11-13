@@ -4,6 +4,32 @@
 # Note: This module uses ENVIRON and vars arrays directly for compatibility
 # Variable context synchronization is handled by evaluators
 
+# Process AWK section marker: {{AWK:...}}
+# Extracts AWK code and executes it, returning the output
+# Parameters:
+#   marker_text - marker content (e.g., "AWK:\nBEGIN { ... }")
+# Returns: AWK script output or empty string on error
+function process_awk_section(marker_text,    awk_code, awk_output) {
+    # Check if this is an AWK section
+    if (substr(marker_text, 1, 4) != "AWK:") {
+        return ""
+    }
+    
+    # Extract AWK code (everything after "AWK:")
+    awk_code = substr(marker_text, 5)
+    gsub(/^[ \t\n]+|[ \t\n]+$/, "", awk_code)  # trim
+    
+    if (awk_code == "") {
+        return ""
+    }
+    
+    # Execute AWK code using execute_awk_script_with_input
+    # Note: This function must be available via @include
+    awk_output = execute_awk_script_with_input(awk_code, "")
+    
+    return awk_output
+}
+
 # Process split function: splits value by delimiter and stores parts in ENVIRON and vars
 function process_split(var_name, func_arg, base_value,    delimiter, n, parts_array, p, part_var) {
     delimiter = func_arg

@@ -5,22 +5,12 @@
 @include "core/token_tree.awk"
 @include "core/variable_context.awk"
 @include "core/renderer.awk"
+@include "constructs/text/helpers.awk"
+@include "core/sh_section_extensions.awk"
 
-function evaluate_sh_section(token_id,    child_count, i, child_id, sh_code, output, text_token_id, metadata, script_file, env_file, wrapper_file, output_file, cmd, line, generated_content, key, value, vars_to_include, env_count) {
+function evaluate_sh_section(token_id,    sh_code, output, text_token_id, metadata, script_file, env_file, wrapper_file, output_file, cmd, line, generated_content, key, value, env_count) {
     # Collect shell code from children (text tokens)
-    sh_code = ""
-    child_count = get_children_count(token_id)
-    
-    for (i = 1; i <= child_count; i++) {
-        child_id = get_child(token_id, i)
-        if (get_token_type(child_id) == "text") {
-            child_text = render_token(child_id)
-            if (sh_code != "") {
-                sh_code = sh_code "\n"
-            }
-            sh_code = sh_code child_text
-        }
-    }
+    sh_code = collect_text_from_children(token_id)
     
     if (sh_code == "") {
         return 0
@@ -35,16 +25,8 @@ function evaluate_sh_section(token_id,    child_count, i, child_id, sh_code, out
     env_file = "/tmp/sh_env_" NR "_" rand() ".sh"
     env_count = 0
     
-    # Always include these variables if they exist in ENVIRON
-    delete vars_to_include
-    vars_to_include["CUSTOM_MOCKS_LIST"] = 1
-    vars_to_include["WRAPPER_FUNCTIONS"] = 1
-    vars_to_include["PARAM_COUNTS_ARRAY"] = 1
-    vars_to_include["MAX_ARGS_COUNT"] = 1
-    vars_to_include["MISSING_FUNCTIONS"] = 1
-    vars_to_include["temp_file"] = 1
-    
-    for (key in vars_to_include) {
+    # Include registered environment variables from extensions
+    for (key in sh_env_vars) {
         if (key in ENVIRON && length(ENVIRON[key]) > 0) {
             value = ENVIRON[key]
             # Escape single quotes for shell
@@ -71,8 +53,8 @@ function evaluate_sh_section(token_id,    child_count, i, child_id, sh_code, out
     # Read output file
     generated_content = ""
     while ((getline line < output_file) > 0) {
-        # Filter debug output lines
-        if (line !~ /^\+/ && line !~ /^CUSTOM_MOCKS_LIST=/ && line !~ /^WRAPPER_FUNCTIONS=/ && line !~ /^set -x/ && line !~ /^DEBUG:/ && line != "") {
+        # Filter debug output lines using registered filters
+        if (!should_filter_sh_output_line(line) && line != "") {
             if (generated_content != "") {
                 generated_content = generated_content "\n"
             }

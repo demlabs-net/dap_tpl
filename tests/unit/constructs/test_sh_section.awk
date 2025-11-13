@@ -3,6 +3,8 @@
 
 @include "core/token_tree.awk"
 @include "core/variable_context.awk"
+@include "core/renderer.awk"
+@include "constructs/sh_section/definition.awk"
 @include "constructs/sh_section/evaluator.awk"
 
 BEGIN {

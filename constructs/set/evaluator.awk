@@ -5,6 +5,7 @@
 @include "core/variable_context.awk"
 @include "core/variable_functions.awk"
 @include "core/marker_parser.awk"
+@include "core/construct_registry.awk"
 
 # Find innermost marker (one that doesn't contain other markers)
 function find_innermost_marker(text, start_pos, marker_info,    pos, marker_pos, marker_start, marker_end, depth, i, marker_text) {
@@ -64,7 +65,16 @@ function evaluate_set_value(value_expr,    result, marker_info, marker_text, var
         }
         
         marker_text = marker_info["text"]
-        if (substr(marker_text, 1, 1) != "#" && substr(marker_text, 1, 1) != "/") {
+        
+        # Try to process marker using registered processors (e.g., AWK sections)
+        processed_value = process_marker(marker_text)
+        if (processed_value != "") {
+            # Replace marker with processed value
+            before = substr(result, 1, marker_info["pos"] - 1)
+            after = substr(result, marker_info["end"])
+            result = before processed_value after
+        }
+        else if (substr(marker_text, 1, 1) != "#" && substr(marker_text, 1, 1) != "/") {
             parsed_expr = parse_var_expr(marker_text)
             var_name = get_var_name(parsed_expr)
             func_name = get_func_name(parsed_expr)
@@ -130,6 +140,8 @@ function evaluate_set(token_id,    condition, var_name, var_value, child_count, 
         return token_id
     }
     
+    # Set constructs should produce no output - they only set variables
+    # Return root token with children
     delete metadata
     result_token_id = create_token("root", "", metadata)
     
