@@ -144,8 +144,8 @@ See docs/DAP_TPL_GUIDE.md for details.
 
 ## Requirements
 
-- GNU AWK 5.2+
-- Bash 4.0+
+- GNU AWK 4.0+
+- Bash 3.5+
 - GNU coreutils
 
 ## License
