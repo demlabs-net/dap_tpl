@@ -86,21 +86,92 @@ function process_in_list(base_value, func_arg,    list_var_name, list_value, fou
     return found ? "1" : "0"
 }
 
-# Main function to process variable function
-function process_variable_function(var_name, func_name, func_arg, base_value,    result) {
-    if (func_name == "split") {
-        return process_split(var_name, func_arg, base_value)
-    } else if (func_name == "part") {
-        return process_part(var_name, func_arg)
-    } else if (func_name == "contains") {
-        return process_contains(base_value, func_arg)
-    } else if (func_name == "ne") {
-        return process_ne(base_value, func_arg)
-    } else if (func_name == "in_list") {
-        return process_in_list(base_value, func_arg)
+# Process replace function: replaces all occurrences of pattern with replacement
+function process_replace(base_value, func_arg,    pattern, replacement, result, parts) {
+    # func_arg format: "pattern|replacement" or "pattern replacement"
+    if (index(func_arg, "|") > 0) {
+        n = split(func_arg, parts, "|")
+        pattern = parts[1]
+        replacement = (n > 1) ? parts[2] : ""
     } else {
-        # Unknown function - return base value
-        return base_value
+        n = split(func_arg, parts, " ")
+        pattern = parts[1]
+        replacement = (n > 1) ? parts[2] : ""
     }
+    result = base_value
+    gsub(pattern, replacement, result)
+    return result
+}
+
+# Process remove_suffix function: removes suffix from string
+function process_remove_suffix(base_value, func_arg,    suffix, result) {
+    suffix = func_arg
+    gsub(/^[ \t]+|[ \t]+$/, "", suffix)
+    result = base_value
+    if (match(result, suffix "$")) {
+        result = substr(result, 1, RSTART - 1)
+    }
+    return result
+}
+
+# Process trim function: removes leading and trailing whitespace
+function process_trim(base_value, func_arg,    result) {
+    result = base_value
+    gsub(/^[ \t]+|[ \t]+$/, "", result)
+    return result
+}
+
+# Variable function dispatch table
+# Maps function names to handler function names
+# Functions are categorized by their signature:
+#   - VAR_FUNC_NEEDS_VARNAME: functions that need var_name parameter (split, part)
+#   - VAR_FUNC_DISPATCH: all other functions (base_value, func_arg)
+BEGIN {
+    # Register core variable functions that need var_name
+    VAR_FUNC_NEEDS_VARNAME["split"] = 1
+    VAR_FUNC_NEEDS_VARNAME["part"] = 1
+    
+    # Register core variable functions
+    VAR_FUNC_DISPATCH["split"] = "process_split"
+    VAR_FUNC_DISPATCH["part"] = "process_part"
+    VAR_FUNC_DISPATCH["contains"] = "process_contains"
+    VAR_FUNC_DISPATCH["ne"] = "process_ne"
+    VAR_FUNC_DISPATCH["in_list"] = "process_in_list"
+    VAR_FUNC_DISPATCH["replace"] = "process_replace"
+    VAR_FUNC_DISPATCH["remove_suffix"] = "process_remove_suffix"
+    VAR_FUNC_DISPATCH["trim"] = "process_trim"
+    # C-specific functions (normalize_name, escape_name, etc.) are registered by mocking extensions
+}
+
+# Register a variable function handler
+# Parameters:
+#   func_name - function name (e.g., "split", "trim")
+#   handler_func - handler function name (e.g., "process_split")
+#   needs_varname - 1 if function needs var_name parameter, 0 otherwise
+function register_variable_function(func_name, handler_func, needs_varname) {
+    VAR_FUNC_DISPATCH[func_name] = handler_func
+    if (needs_varname) {
+        VAR_FUNC_NEEDS_VARNAME[func_name] = 1
+    }
+}
+
+# Main function to process variable function
+# Uses dispatch table for extensible function handling
+function process_variable_function(var_name, func_name, func_arg, base_value,    handler_func) {
+    # Check dispatch table
+    if (func_name in VAR_FUNC_DISPATCH) {
+        handler_func = VAR_FUNC_DISPATCH[func_name]
+        # Use indirect function call (GNU AWK feature)
+        # Check if function needs var_name parameter
+        if (func_name in VAR_FUNC_NEEDS_VARNAME) {
+            return @handler_func(var_name, func_arg, base_value)
+        }
+        # For functions that only need base_value and func_arg
+        return @handler_func(base_value, func_arg)
+    }
+    
+    # Unknown function - return base value
+    # Extensions can register additional functions via register_variable_function()
+    return base_value
 }
 

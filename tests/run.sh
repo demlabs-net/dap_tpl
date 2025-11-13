@@ -71,9 +71,13 @@ run_test_runner() {
     fi
     
     print_info "Running $runner_name..."
-    if bash "$runner_file"; then
+    local output
+    if output=$(bash "$runner_file" 2>&1); then
+        echo "$output"
         return 0
     else
+        echo "$output"
+        print_error "❌ Test failed: $runner_name"
         return 1
     fi
 }
@@ -123,6 +127,7 @@ run_tests_in_dir() {
     local failed=0
     local passed=0
     local found_any=0
+    local failed_tests=()
     
     if [ ! -d "$test_dir" ]; then
         print_error "Test directory not found: $test_dir"
@@ -134,10 +139,12 @@ run_tests_in_dir() {
     while IFS= read -r runner_file; do
         if [ -f "$runner_file" ]; then
             found_any=1
+            runner_name=$(basename "$runner_file" .sh)
             if run_test_runner "$runner_file"; then
                 ((passed++)) || true
             else
                 ((failed++)) || true
+                failed_tests+=("$runner_name")
             fi
             echo ""
         fi
@@ -172,6 +179,13 @@ run_tests_in_dir() {
     if [ $failed -eq 0 ] && [ $passed -gt 0 ]; then
         return 0
     elif [ $failed -gt 0 ]; then
+        # Print list of failed tests
+        if [ ${#failed_tests[@]} -gt 0 ]; then
+            print_error "Failed tests in $(basename "$test_dir"):"
+            for test in "${failed_tests[@]}"; do
+                echo "  - $test"
+            done
+        fi
         return 1
     else
         return 0
@@ -202,11 +216,19 @@ if [ "$TARGET" == "all" ]; then
         integration_result=1
     fi
     
+    echo ""
     if [ $unit_result -eq 0 ] && [ $integration_result -eq 0 ]; then
-        print_success "All tests passed!"
+        print_success "✅ All tests passed!"
         exit 0
     else
-        print_error "Some tests failed"
+        echo ""
+        print_error "❌ Some tests failed:"
+        if [ $unit_result -ne 0 ]; then
+            echo "  - Unit tests: FAILED"
+        fi
+        if [ $integration_result -ne 0 ]; then
+            echo "  - Integration tests: FAILED"
+        fi
         exit 1
     fi
     

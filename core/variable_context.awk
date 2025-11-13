@@ -138,10 +138,22 @@ function clear_contexts() {
 
 # Export all variables from current context to ENVIRON
 # This is useful for compatibility with legacy code that uses ENVIRON
-function export_context_to_environ(    var_name) {
-    if (context_level > 0) {
-        for (var_name in contexts[context_level]["vars"]) {
-            ENVIRON[var_name] = contexts[context_level]["vars"][var_name]
+# Exports from all context levels (current and parents)
+function export_context_to_environ(    var_name, level, parent) {
+    level = context_level
+    # Export from all context levels, starting from current down to root
+    while (level > 0) {
+        if (level in contexts && "vars" in contexts[level]) {
+            for (var_name in contexts[level]["vars"]) {
+                ENVIRON[var_name] = contexts[level]["vars"][var_name]
+            }
+        }
+        # Move to parent context
+        if (level in contexts && "parent" in contexts[level]) {
+            parent = contexts[level]["parent"]
+            level = parent
+        } else {
+            break
         }
     }
 }

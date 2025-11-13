@@ -1,14 +1,58 @@
-# Unit tests for dap_tpl_engine.awk - full pipeline tests
+# Unit tests for dap_tpl compiled engine - full pipeline tests
 # Tests complete tokenize → evaluate → render pipeline
 
 @include "core/token_tree.awk"
 @include "core/variable_context.awk"
-@include "core/tokenizer.awk"
-@include "core/evaluator.awk"
 @include "core/renderer.awk"
 @include "core/variable_functions.awk"
+@include "core/construct_registry.awk"
+
+# Include construct modules for testing
+@include "constructs/if/tokenizer.awk"
+@include "constructs/if/evaluator.awk"
+@include "constructs/var/tokenizer.awk"
+@include "constructs/var/evaluator.awk"
+@include "constructs/set/tokenizer.awk"
+@include "constructs/set/evaluator.awk"
+@include "constructs/for/tokenizer.awk"
+@include "constructs/for/evaluator.awk"
+
+# Dispatch functions (minimal for testing)
+function dispatch_tokenizer(func_name, marker_text, pos, start_line, construct_type) {
+    if (func_name == "parse_if_construct") return parse_if_construct(marker_text, pos, start_line)
+    if (func_name == "parse_set_construct") return parse_set_construct(marker_text, pos, start_line)
+    if (func_name == "parse_for_construct") return parse_for_construct(marker_text, pos, start_line)
+    return 0
+}
+
+function dispatch_evaluator(func_name, token_id, depth) {
+    if (func_name == "evaluate_if") return evaluate_if(token_id)
+    if (func_name == "evaluate_var") return evaluate_var(token_id)
+    if (func_name == "evaluate_set") return evaluate_set(token_id)
+    if (func_name == "evaluate_for") return evaluate_for(token_id)
+    return 0
+}
+
+# Now include core modules that use dispatch functions
+@include "core/tokenizer_core.awk"
+@include "core/evaluator_core.awk"
 
 BEGIN {
+    # Register constructs for testing
+    register_opening_pattern("if", "^#if[ \t]+(.+)$", "parse_if_construct")
+    register_closing_pattern("if", "^/if$")
+    register_evaluator("if", "evaluate_if")
+    
+    register_opening_pattern("set", "^#set[ \t]+(.+)$", "parse_set_construct")
+    register_closing_pattern("set", "^/set$")
+    register_evaluator("set", "evaluate_set")
+    
+    register_opening_pattern("for", "^#for[ \t]+(.+)$", "parse_for_construct")
+    register_closing_pattern("for", "^/for$")
+    register_evaluator("for", "evaluate_for")
+    
+    register_evaluator("var", "evaluate_var")
+    
     test_count = 0
     pass_count = 0
     fail_count = 0

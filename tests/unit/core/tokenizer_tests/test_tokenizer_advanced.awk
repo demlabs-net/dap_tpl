@@ -1,7 +1,24 @@
 # Unit tests for tokenizer.awk - advanced cases
 # Tests nested constructs, set with nested variables, for loops, else branches, AWK sections
 
-@include "core/tokenizer.awk"
+@include "core/construct_registry.awk"
+# Include all construct definitions and tokenizers
+@include "constructs/if/definition.awk"
+@include "constructs/for/definition.awk"
+@include "constructs/set/definition.awk"
+@include "constructs/var/definition.awk"
+@include "constructs/awk_section/definition.awk"
+@include "constructs/if/tokenizer.awk"
+@include "constructs/if/branch_parser.awk"
+@include "constructs/for/tokenizer.awk"
+@include "constructs/set/tokenizer.awk"
+@include "constructs/var/tokenizer.awk"
+@include "constructs/awk_section/tokenizer.awk"
+
+# Include dispatch function stubs for tests
+@include "tests/fixtures/dispatch_stubs.awk"
+
+@include "core/tokenizer_core.awk"
 
 BEGIN {
     test_count = 0
@@ -118,14 +135,21 @@ function test_nested_for_in_if() {
 function test_awk_section() {
     clear_token_tree()
     
-    template = "{{AWK:print \"test\"}}"
+    template = "{{AWK:}}\nprint \"test\"\n{{/AWK}}"
     root_id = tokenize(template)
     
     test("awk root has 1 child", get_children_count(root_id) == 1)
     
     awk_id = get_child(root_id, 1)
     test("child is awk_section token", get_token_type(awk_id) == "awk_section")
-    test("awk value is correct", get_token_value(awk_id) == "print \"test\"")
+    test("awk has 1 child", get_children_count(awk_id) == 1)
+    
+    awk_child = get_child(awk_id, 1)
+    test("awk child is text", get_token_type(awk_child) == "text")
+    # AWK code may include leading/trailing newlines from parsing
+    awk_value = get_token_value(awk_child)
+    gsub(/^\n+|\n+$/, "", awk_value)
+    test("awk value is correct", awk_value == "print \"test\"")
 }
 
 function test_variable_with_function() {

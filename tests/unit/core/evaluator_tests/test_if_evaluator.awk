@@ -2,7 +2,16 @@
 
 @include "core/token_tree.awk"
 @include "core/variable_context.awk"
-@include "core/evaluators/if_evaluator.awk"
+@include "core/variable_functions.awk"
+@include "core/marker_parser.awk"
+@include "core/condition_parser.awk"
+@include "core/construct_registry.awk"
+@include "constructs/if/evaluator.awk"
+
+# Include dispatch function stubs for tests
+@include "tests/fixtures/dispatch_stubs.awk"
+
+@include "core/evaluator_core.awk"
 
 BEGIN {
     test_count = 0

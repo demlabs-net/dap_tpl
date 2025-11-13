@@ -2,7 +2,13 @@
 
 @include "core/token_tree.awk"
 @include "core/variable_context.awk"
-@include "core/evaluators/for_evaluator.awk"
+@include "core/construct_registry.awk"
+@include "constructs/for/evaluator.awk"
+
+# Include dispatch function stubs for tests
+@include "tests/fixtures/dispatch_stubs.awk"
+
+@include "core/evaluator_core.awk"
 
 BEGIN {
     test_count = 0

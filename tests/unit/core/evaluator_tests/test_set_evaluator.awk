@@ -3,7 +3,7 @@
 @include "core/token_tree.awk"
 @include "core/variable_context.awk"
 @include "core/variable_functions.awk"
-@include "core/evaluators/set_evaluator.awk"
+@include "constructs/set/evaluator.awk"
 
 BEGIN {
     test_count = 0

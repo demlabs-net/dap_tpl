@@ -1,6 +1,20 @@
 # Unit tests for tokenizer.awk - simple cases
 
-@include "core/tokenizer.awk"
+@include "core/construct_registry.awk"
+@include "constructs/if/definition.awk"
+@include "constructs/for/definition.awk"
+@include "constructs/set/definition.awk"
+@include "constructs/var/definition.awk"
+@include "constructs/if/tokenizer.awk"
+@include "constructs/if/branch_parser.awk"
+@include "constructs/for/tokenizer.awk"
+@include "constructs/set/tokenizer.awk"
+@include "constructs/var/tokenizer.awk"
+
+# Include dispatch function stubs for tests
+@include "tests/fixtures/dispatch_stubs.awk"
+
+@include "core/tokenizer_core.awk"
 
 BEGIN {
     test_count = 0

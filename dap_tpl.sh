@@ -23,8 +23,11 @@ tpl_print_error() {
 }
 
 # Function to replace placeholders in template file
-# Usage: replace_template_placeholders <template_file> <output_file> <var1=value1> <var2=value2> ...
+# Usage: replace_template_placeholders <template_file> <output_file> [--extensions-dir <path>] <var1=value1> <var2=value2> ...
 # For multi-line values, use a temporary file: replace_template_placeholders <template> <output> <var1=@file1> <var2=value2>
+# 
+# Options:
+#   --extensions-dir <path> - optional path to extensions directory (e.g., ../mocking)
 # 
 # Environment variables:
 #   SCRIPTS_DIR - directory containing AWK scripts for template processing (defaults to script directory)
@@ -32,9 +35,21 @@ tpl_print_error() {
 replace_template_placeholders() {
     local template_file="$1"
     local output_file="$2"
-    # Save original arguments before shifting (needed for placeholder replacement loop)
-    local placeholder_args=("$@")
     shift 2
+    
+    # Parse optional --extensions-dir parameter
+    local extensions_dir=""
+    local var_args=()
+    while [ $# -gt 0 ]; do
+        if [ "$1" = "--extensions-dir" ] && [ $# -gt 1 ]; then
+            extensions_dir="$2"
+            shift 2
+        else
+            var_args+=("$1")
+            shift
+        fi
+    done
+    set -- "${var_args[@]}"
     
     if [ ! -f "$template_file" ]; then
         tpl_print_error "Template file not found: $template_file"
@@ -63,8 +78,7 @@ replace_template_placeholders() {
     # File references (@filename) are read and exported as variable content
     # Track exported variables for explicit passing to subprocesses
     local exported_vars=()
-    local var_args=("$@")
-    for var_arg in "${var_args[@]}"; do
+    for var_arg in "$@"; do
         if [[ "$var_arg" == *"="* ]]; then
             local var_name="${var_arg%%=*}"
             # Extract value after first = (to handle values containing =)
@@ -110,25 +124,70 @@ replace_template_placeholders() {
         done
     fi
     
-    # Process template using new engine
+    # Process template using engine
     # Export AWKPATH for @include support
+    # AWKPATH should point to directory containing dap_tpl scripts (SCRIPTS_DIR)
+    # This allows @include "core/..." directives to work
     export AWKPATH="${SCRIPTS_DIR}"
+    
+    # Build compiled engine and capture path from build_engine.sh output
+    # Include extensions directory if provided
+    local compiled_engine=""
+    
+    # Build engine - fail fast if build script doesn't exist
+    if [ ! -f "${SCRIPTS_DIR}/utils/build_engine.sh" ]; then
+        tpl_print_error "Build script not found: ${SCRIPTS_DIR}/utils/build_engine.sh"
+        return 1
+    fi
+    
+    # Build engine with optional extensions directory and capture ENGINE_PATH
+    local engine_output
+    if [ -n "${extensions_dir}" ]; then
+        # Resolve absolute path if relative
+        if [ ! "${extensions_dir:0:1}" = "/" ]; then
+            extensions_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/${extensions_dir}"
+        fi
+        engine_output=$("${SCRIPTS_DIR}/utils/build_engine.sh" "${extensions_dir}" 2>&1) || {
+            tpl_print_error "Failed to build engine"
+            echo "$engine_output" >&2
+            return 1
+        }
+    else
+        engine_output=$("${SCRIPTS_DIR}/utils/build_engine.sh" 2>&1) || {
+            tpl_print_error "Failed to build engine"
+            echo "$engine_output" >&2
+            return 1
+        }
+    fi
+    
+    # Extract ENGINE_PATH from output
+    compiled_engine=$(echo "$engine_output" | grep "^ENGINE_PATH=" | cut -d'=' -f2-)
+    if [ -z "$compiled_engine" ] || [ ! -f "$compiled_engine" ]; then
+        tpl_print_error "Engine file was not created or path not found"
+        echo "$engine_output" >&2
+        return 1
+    fi
     
     # Create temporary file for output
     local temp_output=$(mktemp)
     
-    # Execute dap_tpl_engine.awk with environment variables
+    # Execute compiled engine with environment variables
+    # Change to SCRIPTS_DIR so relative paths in @include work correctly
+    # Pass DAP_TPL_ENGINE_PATH so include evaluator can use the same engine
     if [ ${#exported_vars[@]} -gt 0 ]; then
         (
             cd "${SCRIPTS_DIR}" && \
-            eval "env$env_vars_str AWKPATH=\"${SCRIPTS_DIR}\" gawk -f \"dap_tpl_engine.awk\" \"$template_file\" > \"$temp_output\""
+            eval "env$env_vars_str DAP_TPL_ENGINE_PATH=\"${compiled_engine}\" AWKPATH=\"${SCRIPTS_DIR}\" gawk -f \"${compiled_engine}\" \"$template_file\" > \"$temp_output\""
         )
     else
         (
             cd "${SCRIPTS_DIR}" && \
-            env AWKPATH="${SCRIPTS_DIR}" gawk -f "dap_tpl_engine.awk" "$template_file" > "$temp_output"
+            env DAP_TPL_ENGINE_PATH="${compiled_engine}" AWKPATH="${SCRIPTS_DIR}" gawk -f "${compiled_engine}" "$template_file" > "$temp_output"
         )
     fi
+    
+    # Cleanup compiled engine file after use (optional - can be kept for caching)
+    # rm -f "${compiled_engine}"
     
     # Check if processing succeeded
     if [ ! -s "$temp_output" ]; then

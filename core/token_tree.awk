@@ -26,9 +26,8 @@ BEGIN {
 function create_token(type, value, metadata,    token_id, key) {
     token_id = next_token_id++
     tokens[token_id]["type"] = type
-    if (value != "") {
-        tokens[token_id]["value"] = value
-    }
+    # Always set value, even if empty (needed for text tokens with empty content)
+    tokens[token_id]["value"] = value
     # Copy metadata
     if (isarray(metadata)) {
         for (key in metadata) {
