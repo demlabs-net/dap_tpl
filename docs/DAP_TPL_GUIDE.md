@@ -1,5 +1,7 @@
 # DAP Template Processing Language - Complete Guide
 
+[Русская версия](DAP_TPL_GUIDE.ru.md) | English
+
 ## Table of Contents
 
 1. [Introduction](#introduction)

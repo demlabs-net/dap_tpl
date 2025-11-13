@@ -1,6 +1,8 @@
 # DAP Template Processing System (dap_tpl)
 
-Modern template processing system for DAP SDK test framework with modular architecture and extensible design.
+Template processing system for DAP SDK test framework with modular architecture and extensible design.
+
+[Русская версия](README.ru.md) | English
 
 ## Features
 
@@ -146,8 +148,8 @@ See [docs/DAP_TPL_GUIDE.md](docs/DAP_TPL_GUIDE.md#adding-new-constructs) for det
 
 ## Requirements
 
-- GNU AWK 5.2+
-- Bash 4.0+
+- GNU AWK 4.0+
+- Bash 3.0+
 - GNU coreutils
 
 ## License
