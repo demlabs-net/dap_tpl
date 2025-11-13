@@ -4,11 +4,33 @@
 
 1. [Introduction](#introduction)
 2. [Tutorial](#tutorial)
+   - Lesson 1: Your First Template
+   - Lesson 2: Using Conditionals
+   - Lesson 3: Loops
+   - Lesson 4: Macros for Reusability
+   - Lesson 5: Putting It All Together
 3. [Language Reference](#language-reference)
+   - Variables
+   - Conditionals
+   - Loops
+   - Macros
+   - Includes
+   - Comments
+   - AWK/Shell Sections
 4. [Cookbook](#cookbook)
+   - 6 Practical Recipes
 5. [Command-Line Tools](#command-line-tools)
+   - dap_tpl.sh Reference
+   - dap_tpl_lib.sh Reference
 6. [API Reference](#api-reference)
 7. [Advanced Topics](#advanced-topics)
+   - Creating Custom Constructs
+   - Extension System
+   - Performance Optimization
+   - Debugging
+8. [Construct Index](#construct-index)
+9. [Appendices](#appendices)
+10. [Quick Reference Card](#quick-reference-card)
 
 ---
 
@@ -94,9 +116,34 @@ Create `macros.tpl`:
 {{#call DECLARE_GETTER|const char*|name}}
 ```
 
-### Lesson 5: Complex Example
+### Lesson 5: Putting It All Together
 
-See `docs/examples/06_complex.tpl` for a real-world example.
+Combine all features in a real template:
+
+```
+{{#macro MOCK_FUNCTION}}
+{{ARG0}} mock_{{ARG1}}({{ARG2}}) {
+    {{#if ARG0 contains '*'}}
+    return NULL;
+    {{#elif ARG0 == void}}
+    // No return
+    {{else}}
+    return 0;
+    {{/if}}
+}
+{{/macro}}
+
+{{#set FUNCTIONS=init|int|void
+cleanup|void|void
+get_data|char*|int id}}
+
+{{#for func in FUNCTIONS}}
+{{func|split|pipe}}
+{{#call MOCK_FUNCTION|{{func|part|0}}|{{func|part|1}}|{{func|part|2}}}}
+{{/for}}
+```
+
+See [docs/examples/06_complex.tpl](examples/06_complex.tpl) for a complete real-world example.
 
 ---
 
@@ -483,6 +530,8 @@ int {{FIELD}} = {{DEFAULT}};
 
 Main library for template processing.
 
+**Location:** `dap_tpl/dap_tpl.sh`
+
 #### Usage
 
 ```bash
@@ -490,7 +539,13 @@ Main library for template processing.
 source dap_tpl/dap_tpl.sh
 
 # Process template
-replace_template_placeholders INPUT OUTPUT [--extensions-dir DIR] VAR=VALUE ...
+replace_template_placeholders INPUT_FILE OUTPUT_FILE [OPTIONS] VAR=VALUE ...
+```
+
+#### Synopsis
+
+```
+replace_template_placeholders TEMPLATE OUTPUT [--extensions-dir DIR] VARIABLE=VALUE ...
 ```
 
 #### Parameters
@@ -534,15 +589,20 @@ replace_template_placeholders \
 
 ### dap_tpl_lib.sh
 
-Additional library functions (if needed).
+Additional library functions for advanced use cases.
 
-#### Usage
+**Location:** `dap_tpl/dap_tpl_lib.sh`
 
-```bash
-source dap_tpl/dap_tpl_lib.sh
-```
+**Note:** This library is optional and provides specialized functions. Most users only need `dap_tpl.sh`.
 
-Provides additional helper functions for specific use cases.
+#### Available Functions
+
+The library provides helper functions for:
+- Template validation
+- Batch processing
+- Custom error handling
+
+Consult the source file for available functions and their signatures.
 
 ---
 
@@ -863,6 +923,39 @@ replace_template_placeholders \
 
 # Check output
 cat /tmp/output.txt
+```
+
+---
+
+---
+
+## Quick Reference Card
+
+### Variables
+```
+{{VAR}}              Simple variable
+{{VAR|func|arg}}     Variable with function
+```
+
+### Control Flow
+```
+{{#if COND}}...{{/if}}           Conditional
+{{#elif COND}}...{{/elif}}       Else-if
+{{#for item in LIST}}...{{/for}} Loop
+{{#set VAR=val}}                 Assignment
+```
+
+### Reusability
+```
+{{#macro NAME}}...{{/macro}}     Define macro
+{{#call NAME|arg}}               Call macro
+{{#include "file"}}              Include template
+```
+
+### Comments
+```
+{{! comment }}                   Single-line
+{{!-- comment --}}               Multi-line
 ```
 
 ---

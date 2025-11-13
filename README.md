@@ -102,20 +102,17 @@ COMPILED_ENGINE=$(echo "$ENGINE_OUTPUT" | grep "^ENGINE_PATH=" | cut -d'=' -f2-)
 
 ```bash
 cd tests
-./run.sh              # All tests
-./run.sh unit         # Unit tests
-./run.sh integration  # Integration tests
+./run.sh              # All tests (unit + integration)
+./run.sh unit         # Unit tests only
+./run.sh integration  # Integration tests only
 ```
 
-Test coverage:
-- Unit tests: 27 tests
-- Integration tests: 10 tests
-- Mocking tests: 4 tests
+Test results: 41 tests (27 unit + 10 integration + 4 mocking)
 
 ## Documentation
 
-- **docs/DAP_TPL_GUIDE.md** - Complete guide, tutorial and cookbook
-- **docs/examples/** - Example templates demonstrating all features
+- **[docs/DAP_TPL_GUIDE.md](docs/DAP_TPL_GUIDE.md)** - Complete guide with tutorial, reference and cookbook
+- **[docs/examples/](docs/examples/)** - 7 example templates with learning path
 
 ## Variable Functions
 
@@ -134,18 +131,23 @@ Mocking functions:
 - `escape_char` - Escape specific: `{{TYPE|escape_char|*|_PTR}}`
 - `sanitize_name` - Clean name: `{{TYPE|sanitize_name}}`
 
-## Adding Constructs
+## Adding New Constructs
 
-1. Create directory: `constructs/my_construct/`
-2. Add `definition.awk`, `tokenizer.awk`, `evaluator.awk`
-3. Rebuild: `./utils/build_engine.sh`
+1. Create construct directory: `constructs/my_construct/`
+2. Add required files:
+   - `definition.awk` - Register construct in registry
+   - `tokenizer.awk` - Parse construct syntax
+   - `evaluator.awk` - Evaluate construct logic
+3. Rebuild engine: `./utils/build_engine.sh`
 
-See docs/DAP_TPL_GUIDE.md for details.
+The build system automatically discovers and includes new constructs.
+
+See [docs/DAP_TPL_GUIDE.md](docs/DAP_TPL_GUIDE.md#adding-new-constructs) for detailed guide.
 
 ## Requirements
 
-- GNU AWK 4.0+
-- Bash 3.5+
+- GNU AWK 5.2+
+- Bash 4.0+
 - GNU coreutils
 
 ## License

@@ -37,12 +37,30 @@ process|char*|const char* data"
 
 ## Learning Path
 
-1. Start with **01_variables.tpl** - Basic syntax
-2. Then **02_conditionals.tpl** - Control flow
-3. Then **03_loops.tpl** - Iteration
-4. Then **04_macros.tpl** - Reusability
-5. Then **05_includes.tpl** - Modularity
-6. Finally **06_complex.tpl** - Real-world usage
+Follow these examples in order for best learning experience:
+
+1. **01_variables.tpl** - Variables, split, part, trim, contains, ne
+   - Learn basic variable substitution and transformation functions
+   
+2. **02_conditionals.tpl** - if/elif/else, comparisons, logical operators
+   - Master conditional logic and decision-making
+   
+3. **03_loops.tpl** - for loops, nested loops, conditional loops
+   - Understand iteration and data processing
+   
+4. **04_macros.tpl** - Macro definition and calls with parameters
+   - Create reusable template fragments
+   
+5. **05_includes.tpl** - Template and file includes
+   - Build modular template systems
+   
+6. **06_complex.tpl** - Combined features in production scenario
+   - See how all features work together
+   
+7. **07_awk_sections.tpl** - Embedded AWK and shell code
+   - Advanced code generation techniques
+
+**Estimated time:** 30-60 minutes to complete all examples
 
 ## See Also
 

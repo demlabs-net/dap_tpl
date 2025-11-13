@@ -39,12 +39,11 @@ int dap_{{func}}(void);
 {{/for}}
 
 // Loop with variable functions
-{{#set DATA=dap_list_t*|ptr=LIST
-int|value=42
-char*|ptr=STR}}
+{{#set DATA=dap_list_t*:LIST
+int:42
+char*:STR}}
 {{#for entry in DATA}}
-{{#set PARTS={{entry}}}}
-{{PARTS|split|pipe}}
-Type: {{PARTS|part|0}}, Default: {{PARTS|part|1}}
+{{entry|split|:}}
+Type: {{entry|part|0}}, Default: {{entry|part|1}}
 {{/for}}
 
