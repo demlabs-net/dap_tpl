@@ -109,8 +109,9 @@ function evaluate_for(token_id,    condition, loop_vars, loop_var_count, array_n
         }
     }
     
-    # Push context for loop variables
-    push_context()
+    # DON'T push context for loop - use parent context
+    # This allows {{#set}} inside for to modify parent scope variables
+    # Only loop variables are isolated
     
     # Iterate over items
     for (i = 1; i <= item_count; i++) {
@@ -182,10 +183,7 @@ function evaluate_for(token_id,    condition, loop_vars, loop_var_count, array_n
         }
     }
     
-    # Pop context
-    pop_context()
-    
-    # Restore old values if they existed
+    # Restore old loop variable values if they existed
     for (var_name in old_values) {
         set_var(var_name, old_values[var_name])
         ENVIRON[var_name] = old_values[var_name]
