@@ -113,6 +113,49 @@ function test_for_variable_scoping() {
     test("outer value restored", get_var("item") == "outer")
 }
 
+function test_for_space_separated() {
+    clear_token_tree()
+    clear_contexts()
+    push_context()
+    
+    set_var("TYPES", "int void char")
+    ENVIRON["TYPES"] = "int void char"
+    
+    # Use explicit separator: TYPES|space
+    metadata["condition"] = "type in TYPES|space"
+    for_id = create_token("for", "", metadata)
+    var_id = create_token("var", "", "")
+    set_token_metadata(var_id, "var_name", "type")
+    add_child(for_id, var_id)
+    
+    result_id = evaluate_for(for_id)
+    
+    test("for space returns root", get_token_type(result_id) == "root")
+    test("for space has 3 children", get_children_count(result_id) == 3)
+}
+
+function test_for_auto_space_detection() {
+    clear_token_tree()
+    clear_contexts()
+    push_context()
+    
+    # Space-separated value without pipe
+    set_var("TYPES2", "one two three")
+    ENVIRON["TYPES2"] = "one two three"
+    
+    # For loop without explicit separator - should auto-detect
+    metadata["condition"] = "item in TYPES2"
+    for_id = create_token("for", "", metadata)
+    var_id = create_token("var", "", "")
+    set_token_metadata(var_id, "var_name", "item")
+    add_child(for_id, var_id)
+    
+    result_id = evaluate_for(for_id)
+    
+    # Should detect space separator and iterate over 3 items, not 1
+    test("for auto-detects space", get_children_count(result_id) == 3)
+}
+
 BEGIN {
     printf "Running for_evaluator tests...\n\n"
     
@@ -120,6 +163,8 @@ BEGIN {
     test_for_newline_separated()
     test_for_empty_array()
     test_for_variable_scoping()
+    test_for_space_separated()
+    test_for_auto_space_detection()
     
     printf "\nResults: %d tests, %d passed, %d failed\n", test_count, pass_count, fail_count
     

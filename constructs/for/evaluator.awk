@@ -26,10 +26,21 @@ function evaluate_for(token_id,    condition, loop_vars, loop_var_count, array_n
         gsub(/^[ \t]+|[ \t]+$/, "", array_name)
         
         # Check for explicit separator: ARRAY|separator
-        if (match(array_name, /^(.+)\|(.+)$/)) {
-            array_name = substr(array_name, 1, RSTART - 1)
-            separator = substr(array_name, RSTART + length(array_name) + 2)
+        if (match(array_name, /\|/)) {
+            # Split array_name by | to get array name and separator
+            split(array_name, sep_parts, "|", sep_seps)
+            array_name = sep_parts[1]
+            separator = sep_parts[2]
+            gsub(/^[ \t]+|[ \t]+$/, "", array_name)
             gsub(/^[ \t]+|[ \t]+$/, "", separator)
+            # Handle special separator keywords
+            if (separator == "space" || separator == " ") {
+                separator = " "
+            } else if (separator == "pipe") {
+                separator = "|"
+            } else if (separator == "newline") {
+                separator = "\n"
+            }
         }
         
         # Parse loop variables (support destructuring: "key,val" or "key,val,third")
@@ -49,6 +60,18 @@ function evaluate_for(token_id,    condition, loop_vars, loop_var_count, array_n
         return create_token("root", "", metadata)
     }
     
+    # Auto-detect separator if default (|) and value doesn't contain |
+    if (separator == "|" && array_value !~ /\|/) {
+        # No pipe found - check for other separators
+        if (array_value ~ /\n/) {
+            # Contains newline - use newline
+            separator = "\n"
+        } else if (array_value ~ /[ \t]/) {
+            # Contains space/tab - use space
+            separator = " "
+        }
+    }
+    
     # Split array into items based on separator
     # Support both newline-separated (for file-based data) and custom separator
     if (separator == "|" && array_value ~ /\n/) {
@@ -58,6 +81,12 @@ function evaluate_for(token_id,    condition, loop_vars, loop_var_count, array_n
         # Use specified separator (default: pipe)
         if (separator == "|") {
             item_count = split(array_value, items, /\|/)
+        } else if (separator == " " || separator == "space") {
+            # Space separator - use regex to split by one or more spaces
+            item_count = split(array_value, items, /[ \t]+/)
+        } else if (separator == "" || separator == "newline") {
+            # Empty separator or newline keyword
+            item_count = split(array_value, items, /\n/)
         } else {
             # Custom separator - escape special regex chars
             escaped_sep = separator
