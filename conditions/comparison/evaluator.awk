@@ -1,5 +1,6 @@
 # Comparison Operators Evaluator
 # Evaluates: left OP right where OP is: ==, !=, >, <, >=, <=
+# Note: DEBUG_FILE_NAME is automatically set by build_engine.sh
 
 # Evaluate comparison condition
 # Parameters:
@@ -9,25 +10,51 @@
 function evaluate_comparison(op, parts,    left, right, var_name, func_name, func_arg, base_value, left_val, i, right_start) {
     # Get left value - reconstruct from parts[2] onwards until we find the right value
     # Format is: op|left|right, but left may contain | (e.g., VAR||)
+    # parse_comparison returns: op|parsed_left|right
+    # where parsed_left can be "VAR||" or "VAR||func||arg" format
     # So we need to find where left ends and right begins
-    # Left part is everything from parts[2] to the last empty part before right
-    left = parts[2]
-    # If parts[3] is empty and parts[4] exists, then left is parts[2]|| and right is parts[4]
-    # Otherwise, left is parts[2] and right is parts[3]
-    if (parts[3] == "" && length(parts) > 3 && parts[4] != "") {
-        # Left is VAR|| format, right is in parts[4]
-        right_start = 4
-    } else if (parts[3] == "" && length(parts) > 4 && parts[5] != "") {
-        # Left is VAR|| format, right is in parts[5]
-        right_start = 5
-    } else {
-        # Standard format: left is parts[2], right is parts[3]
+    # Right is always the LAST non-empty part after the operator
+    # Find right by going backwards from the end
+    right_start = 0
+    for (i = length(parts); i >= 3; i--) {
+        if (parts[i] != "") {
+            right_start = i
+            break
+        }
+    }
+    if (right_start == 0) {
+        # Fallback: use parts[3] if it exists
         right_start = 3
     }
     
-    var_name = get_var_name(left)
-    func_name = get_func_name(left)
-    func_arg = get_func_arg(left)
+    # Reconstruct left from parts[2] to right_start-1
+    # But if parsed_left format is "VAR||type", we need to extract "type" as the actual var name
+    # Find the last non-empty part before right_start - that's the actual variable name
+    actual_var_start = 0
+    for (i = right_start - 1; i >= 2; i--) {
+        if (parts[i] != "") {
+            actual_var_start = i
+            break
+        }
+    }
+    if (actual_var_start == 0) {
+        actual_var_start = 2
+    }
+    
+    # Reconstruct left from parts[2] to actual_var_start
+    left = parts[2]
+    for (i = 3; i <= actual_var_start; i++) {
+        if (parts[i] != "") {
+            left = left "|" parts[i]
+        } else {
+            left = left "|"
+        }
+    }
+    
+    # Extract variable name - use the last non-empty part before right
+    var_name = parts[actual_var_start]
+    func_name = ""
+    func_arg = ""
     base_value = get_var(var_name)
     
     if (func_name != "") {
@@ -36,17 +63,20 @@ function evaluate_comparison(op, parts,    left, right, var_name, func_name, fun
         left_val = base_value
     }
     
-    # Get right value - find the last non-empty part
+    # Get right value - use right_start to find correct position
+    # right_start was calculated above based on parts structure
     right = ""
-    for (i = length(parts); i >= 3; i--) {
-        if (parts[i] != "") {
-            right = parts[i]
-            break
-        }
+    if (right_start <= length(parts)) {
+        right = parts[right_start]
     }
-    # Remove quotes if present
+    # Note: quotes are already removed by parse_comparison, but check anyway for safety
     if (match(right, /^['"'"'"](.*)['"'"'"]$/)) {
         right = substr(right, RSTART + 1, RLENGTH - 2)
+    }
+    
+    # Debug output
+    if (var_name == "type" && right == "void") {
+        log_debug("var_name=[%s] base_value=[%s] left_val=[%s] right=[%s] op=[%s] result=%d", var_name, base_value, left_val, right, op, (left_val == right ? 1 : 0))
     }
     
     if (op == "!=") {

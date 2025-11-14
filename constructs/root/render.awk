@@ -14,6 +14,11 @@ function render_root_token(token_id,    child_count, i, child_id, child_type, ch
     result = ""
     prev_was_empty = 0
     
+    # Debug output (disabled by default - set DEBUG_RENDER=1 to enable)
+    # if (ENVIRON["DEBUG_RENDER"] == "1") {
+    #     printf "DEBUG render_root_token: token_id=%d children=%d\n", token_id, child_count > "/dev/stderr"
+    # }
+    
     for (i = 1; i <= child_count; i++) {
         child_id = get_child(token_id, i)
         child_type = get_token_type(child_id)
@@ -90,7 +95,17 @@ function render_root_token(token_id,    child_count, i, child_id, child_type, ch
         
         result = result child_text
         prev_was_empty = 0
+        
+        # Debug output (disabled by default - set DEBUG_RENDER=1 to enable)
+        # if (ENVIRON["DEBUG_RENDER"] == "1" && i <= 3) {
+        #     printf "DEBUG render_root_token: child[%d] type=%s text=[%s] result_so_far=[%s]\n", i, child_type, child_text, result > "/dev/stderr"
+        # }
     }
+    
+    # Debug output (disabled by default - set DEBUG_RENDER=1 to enable)
+    # if (ENVIRON["DEBUG_RENDER"] == "1") {
+    #     printf "DEBUG render_root_token: FINAL result=[%s] length=%d\n", result, length(result) > "/dev/stderr"
+    # }
     
     return result
 }

@@ -1,10 +1,12 @@
 # Conditional Evaluator Helpers
 # Helper functions for evaluating conditional constructs with branches
 # Simplifies the common pattern of if/elif/else evaluation
+# Note: DEBUG_FILE_NAME is automatically set by build_engine.sh
 
 @include "core/token_tree.awk"
 @include "core/child_helpers.awk"
 @include "core/metadata_helpers.awk"
+@include "core/debug.awk"
 
 # Copy main branch children (excluding branch markers) to result
 # Parameters:
@@ -13,6 +15,13 @@
 #   exclude_types - space-separated list of branch types to exclude (e.g., "elif else")
 function copy_main_branch_children(source_token_id, result_token_id, exclude_types,    child_count, i, child_id, child_type, exclude_arr, exclude_count, j, should_exclude) {
     child_count = get_children_count(source_token_id)
+    
+    # Debug output
+    source_condition = get_token_metadata(source_token_id, "condition")
+    if (source_condition ~ /type.*==.*void/) {
+        log_debug("copy_main_branch_children: source_token_id=%d child_count=%d exclude_types=[%s]", source_token_id, child_count, exclude_types)
+    }
+    
     if (child_count == 0) {
         return
     }
@@ -34,8 +43,18 @@ function copy_main_branch_children(source_token_id, result_token_id, exclude_typ
         }
         
         if (!should_exclude) {
+            # Debug output
+            if (source_condition ~ /type.*==.*void/) {
+                log_debug("copy_main_branch_children: adding child id=%d type=%s", child_id, child_type)
+            }
             add_child(result_token_id, child_id)
         }
+    }
+    
+    # Debug output
+    if (source_condition ~ /type.*==.*void/) {
+        result_children = get_children_count(result_token_id)
+        log_debug("copy_main_branch_children: result_token_id=%d result_children=%d", result_token_id, result_children)
     }
 }
 
@@ -45,9 +64,28 @@ function copy_main_branch_children(source_token_id, result_token_id, exclude_typ
 #   result_token_id - result token to add children to
 function copy_branch_children(branch_token_id, result_token_id,    branch_child_count, i, branch_child_id) {
     branch_child_count = get_children_count(branch_token_id)
+    
+    # Debug output
+    parent_condition = get_token_metadata(result_token_id, "condition")
+    if (parent_condition ~ /type.*==.*void/) {
+        log_debug("copy_branch_children: branch_token_id=%d branch_child_count=%d", branch_token_id, branch_child_count)
+    }
+    
     for (i = 1; i <= branch_child_count; i++) {
         branch_child_id = get_child(branch_token_id, i)
+        
+        # Debug output
+        if (parent_condition ~ /type.*==.*void/) {
+            log_debug("copy_branch_children: adding child id=%d type=%s", branch_child_id, get_token_type(branch_child_id))
+        }
+        
         add_child(result_token_id, branch_child_id)
+    }
+    
+    # Debug output
+    if (parent_condition ~ /type.*==.*void/) {
+        result_children = get_children_count(result_token_id)
+        log_debug("copy_branch_children: result_token_id=%d result_children=%d", result_token_id, result_children)
     }
 }
 

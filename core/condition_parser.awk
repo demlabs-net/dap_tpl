@@ -4,8 +4,12 @@
 #
 # Supports: VAR, VAR != 0, VAR > 5, VAR contains 'text', VAR in LIST, VAR matches 'pattern'
 # Also supports: VAR && VAR2, VAR || VAR2, !VAR
+# Note: DEBUG_FILE_NAME is automatically set by build_engine.sh
 
 # Load all condition modules (parsers and evaluators)
+# Note: condition_loader.awk is processed separately by build_engine.sh
+# to add DEBUG_FILE_NAME before each condition module
+# But for direct includes (tests), we need to include condition_loader.awk
 @include "conditions/condition_loader.awk"
 
 # Parse condition expression with operators

@@ -1,11 +1,13 @@
 # Generic Branch Parser
 # Universal branch parser for constructs with elif/else-like branches
 # Uses registry to determine branch marker patterns and token types
+# Note: DEBUG_FILE_NAME is automatically set by build_engine.sh
 
 @include "core/token_tree.awk"
 @include "core/construct_registry.awk"
 @include "core/tokenizer_core.awk"
 @include "core/marker_utils.awk"
+@include "core/debug.awk"
 
 # Find positions of branch markers in content using registry
 # Parameters:
@@ -92,9 +94,19 @@ function parse_branches_generic(content, token_id, construct_type, start_line,  
     delete positions
     count = find_branches_generic(content, construct_type, positions)
     
+    # Debug output
+    if (construct_type == "if" && content ~ /type.*==.*void/) {
+        log_debug("parse_branches_generic: token_id=%d construct_type=%s count=%d content_length=%d", token_id, construct_type, count, length(content))
+    }
+    
     if (count == 0) {
         # No branches - parse normally
         parse_content(content, token_id, start_line)
+        
+        # Debug output
+        if (construct_type == "if" && content ~ /type.*==.*void/) {
+            log_debug("after parse_content, token_id=%d children=%d", token_id, get_children_count(token_id))
+        }
         return
     }
     
@@ -103,7 +115,19 @@ function parse_branches_generic(content, token_id, construct_type, start_line,  
     # Parse main branch (before first branch marker)
     next_pos = positions[1, "pos"]
     branch_content = substr(content, current_pos, next_pos - current_pos)
+    
+    # Debug output
+    if (construct_type == "if" && content ~ /type.*==.*void/) {
+        log_debug("parsing main branch, content=[%s]", branch_content)
+    }
+    
     parse_content(branch_content, token_id, start_line)
+    
+    # Debug output
+    if (construct_type == "if" && content ~ /type.*==.*void/) {
+        log_debug("after main branch, token_id=%d children=%d", token_id, get_children_count(token_id))
+    }
+    
     current_pos = next_pos
     
     # Parse branch markers
@@ -130,9 +154,19 @@ function parse_branches_generic(content, token_id, construct_type, start_line,  
         
         parse_content(branch_content, branch_token_id, start_line)
         add_child(token_id, branch_token_id)
+        
+        # Debug output
+        if (construct_type == "if" && content ~ /type.*==.*void/) {
+            log_debug("added branch %s, branch_children=%d total_children=%d", positions[i, "type"], get_children_count(branch_token_id), get_children_count(token_id))
+        }
     }
     
     # Store metadata indicating branches were found
     set_token_metadata(token_id, "has_branches", "1")
+    
+    # Debug output
+    if (construct_type == "if" && content ~ /type.*==.*void/) {
+        log_debug("final token_id=%d children=%d", token_id, get_children_count(token_id))
+    }
 }
 

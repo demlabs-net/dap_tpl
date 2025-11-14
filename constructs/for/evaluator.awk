@@ -10,6 +10,11 @@
 #   token_id - for token ID
 # Returns: evaluated token ID with loop iterations expanded
 function evaluate_for(token_id,    condition, loop_vars, loop_var_count, array_name, separator, array_value, items, item_count, i, item, item_parts, part_count, result_token_id, child_count, j, child_id, cloned_child_id, metadata, old_values, v, var_name, old_value) {
+    # Debug output (disabled by default - set DEBUG_FOR=1 to enable)
+    # if (ENVIRON["DEBUG_FOR"] == "1") {
+    #     printf "DEBUG evaluate_for: START token_id=%d children=%d\n", token_id, get_children_count(token_id) > "/dev/stderr"
+    # }
+    
     condition = get_token_metadata(token_id, "condition")
     if (condition == "") {
         return token_id
@@ -26,20 +31,41 @@ function evaluate_for(token_id,    condition, loop_vars, loop_var_count, array_n
         gsub(/^[ \t]+|[ \t]+$/, "", array_name)
         
         # Check for explicit separator: ARRAY|separator
+        # But first, check if array_name contains | - if so, it might be a literal value
+        # We need to distinguish between:
+        #   - "item in ARRAY|separator" (variable ARRAY with explicit separator)
+        #   - "item in a|b|c" (literal value a|b|c)
+        # Strategy: Check if it's a variable with explicit separator (ARRAY|separator)
+        # by checking if the part before | is a valid variable name and separator is a keyword
+        original_array_name = array_name
         if (match(array_name, /\|/)) {
-            # Split array_name by | to get array name and separator
-            split(array_name, sep_parts, "|", sep_seps)
-            array_name = sep_parts[1]
-            separator = sep_parts[2]
-            gsub(/^[ \t]+|[ \t]+$/, "", array_name)
-            gsub(/^[ \t]+|[ \t]+$/, "", separator)
-            # Handle special separator keywords
-            if (separator == "space" || separator == " ") {
-                separator = " "
-            } else if (separator == "pipe") {
-                separator = "|"
-            } else if (separator == "newline") {
-                separator = "\n"
+            # Try to split by LAST | to get array name and separator
+            # This handles cases like "ARRAY|separator" where separator is a keyword
+            last_pipe_pos = match(array_name, /\|[^|]*$/)
+            if (last_pipe_pos > 0) {
+                potential_array_name = substr(array_name, 1, last_pipe_pos - 1)
+                potential_separator = substr(array_name, last_pipe_pos + 1)
+                gsub(/^[ \t]+|[ \t]+$/, "", potential_array_name)
+                gsub(/^[ \t]+|[ \t]+$/, "", potential_separator)
+                
+                # Check if separator is a keyword (space, pipe, newline) or if variable exists
+                is_separator_keyword = (potential_separator == "space" || potential_separator == "pipe" || potential_separator == "newline" || potential_separator == " " || potential_separator == "")
+                test_value = get_var(potential_array_name)
+                
+                if (test_value != "" || is_separator_keyword) {
+                    # Variable exists or separator is a keyword - use as variable with separator
+                    array_name = potential_array_name
+                    separator = potential_separator
+                    # Handle special separator keywords
+                    if (separator == "space" || separator == " ") {
+                        separator = " "
+                    } else if (separator == "pipe") {
+                        separator = "|"
+                    } else if (separator == "newline") {
+                        separator = "\n"
+                    }
+                }
+                # If variable not found and separator is not a keyword, array_name stays as literal (a|b|c)
             }
         }
         
@@ -52,11 +78,31 @@ function evaluate_for(token_id,    condition, loop_vars, loop_var_count, array_n
         return token_id
     }
     
-    # Get array value from context
+    # Get array value from context, or use array_name as literal if it contains |
     array_value = get_var(array_name)
+    
+    # Debug output (disabled by default - set DEBUG_FOR=1 to enable)
+    # if (ENVIRON["DEBUG_FOR"] == "1") {
+    #     printf "DEBUG evaluate_for: array_name=[%s] array_value=[%s]\n", array_name, array_value > "/dev/stderr"
+    # }
+    
+    # If variable not found and array_name contains |, use it as literal value
+    if (array_value == "" && array_name ~ /\|/) {
+        array_value = array_name
+        separator = "|"
+        # Debug output (disabled by default - set DEBUG_FOR=1 to enable)
+        # if (ENVIRON["DEBUG_FOR"] == "1") {
+        #     printf "DEBUG evaluate_for: using array_name as literal value=[%s]\n", array_value > "/dev/stderr"
+        # }
+    }
+    
     if (array_value == "") {
         # Empty array - return empty result
         delete metadata
+        # Debug output (disabled by default - set DEBUG_FOR=1 to enable)
+        # if (ENVIRON["DEBUG_FOR"] == "1") {
+        #     printf "DEBUG evaluate_for: empty array, returning empty root token\n" > "/dev/stderr"
+        # }
         return create_token("root", "", metadata)
     }
     
@@ -95,9 +141,19 @@ function evaluate_for(token_id,    condition, loop_vars, loop_var_count, array_n
         }
     }
     
+    # Debug output (disabled by default - set DEBUG_FOR=1 to enable)
+    # if (ENVIRON["DEBUG_FOR"] == "1") {
+    #     printf "DEBUG evaluate_for: item_count=%d\n", item_count > "/dev/stderr"
+    # }
+    
     # Create result token
     delete metadata
     result_token_id = create_token("root", "", metadata)
+    
+    # Debug output (disabled by default - set DEBUG_FOR=1 to enable)
+    # if (ENVIRON["DEBUG_FOR"] == "1") {
+    #     printf "DEBUG evaluate_for: created result_token_id=%d type=%s\n", result_token_id, get_token_type(result_token_id) > "/dev/stderr"
+    # }
     
     # Save old values of loop variables if they exist
     delete old_values
@@ -178,10 +234,24 @@ function evaluate_for(token_id,    condition, loop_vars, loop_var_count, array_n
                 evaluated_child_id = evaluate_token(cloned_child_id)
                 if (evaluated_child_id > 0) {
                     add_child(result_token_id, evaluated_child_id)
+                    # Debug output (disabled by default - set DEBUG_FOR=1 to enable)
+                    # if (ENVIRON["DEBUG_FOR"] == "1") {
+                    #     printf "DEBUG evaluate_for: iteration %d, added child_id=%d type=%s children=%d\n", i, evaluated_child_id, get_token_type(evaluated_child_id), get_children_count(evaluated_child_id) > "/dev/stderr"
+                    # }
+                } else {
+                    # Debug output (disabled by default - set DEBUG_FOR=1 to enable)
+                    # if (ENVIRON["DEBUG_FOR"] == "1") {
+                    #     printf "DEBUG evaluate_for: iteration %d, evaluated_child_id=0 (skipped)\n", i > "/dev/stderr"
+                    # }
                 }
             }
         }
     }
+    
+    # Debug output (disabled by default - set DEBUG_FOR=1 to enable)
+    # if (ENVIRON["DEBUG_FOR"] == "1") {
+    #     printf "DEBUG evaluate_for: FINAL result_token_id=%d type=%s children=%d\n", result_token_id, get_token_type(result_token_id), get_children_count(result_token_id) > "/dev/stderr"
+    # }
     
     # Restore old loop variable values if they existed
     for (var_name in old_values) {

@@ -1,11 +1,13 @@
 # SET Construct Evaluator
 # Evaluates set constructs: {{#set VAR=value}}...{{/set}}
+# Note: DEBUG_FILE_NAME is automatically set by build_engine.sh
 
 @include "core/token_tree.awk"
 @include "core/variable_context.awk"
 @include "core/variable_functions.awk"
 @include "core/marker_parser.awk"
 @include "core/construct_registry.awk"
+@include "core/debug.awk"
 
 # Find innermost marker (one that doesn't contain other markers)
 function find_innermost_marker(text, start_pos, marker_info,    pos, marker_pos, marker_start, marker_end, depth, i, marker_text) {
@@ -53,6 +55,7 @@ function find_innermost_marker(text, start_pos, marker_info,    pos, marker_pos,
 
 # Evaluate variable expression in set value recursively
 function evaluate_set_value(value_expr,    result, marker_info, marker_text, var_expr, parsed_expr, var_name, func_name, func_arg, base_value, var_value, before, after, max_iterations, iterations, parts_count_var, parts_count, part_var, p) {
+    # Initialize result with value expression
     result = value_expr
     max_iterations = 100
     iterations = 0
@@ -75,15 +78,16 @@ function evaluate_set_value(value_expr,    result, marker_info, marker_text, var
             result = before processed_value after
         }
         else if (substr(marker_text, 1, 1) != "#" && substr(marker_text, 1, 1) != "/") {
+            # Parse variable expression
             parsed_expr = parse_var_expr(marker_text)
             var_name = get_var_name(parsed_expr)
             func_name = get_func_name(parsed_expr)
             func_arg = get_func_arg(parsed_expr)
             
+            # Get base value - get_var now properly searches contexts and ENVIRON
+            # set_var always syncs to ENVIRON, so get_var will find variables set in previous iterations
             base_value = get_var(var_name)
-            if (base_value != "" && !(var_name in ENVIRON)) {
-                ENVIRON[var_name] = base_value
-            }
+            log_debug("evaluate_set_value: var_name=[%s] get_var returned=[%s]", var_name, base_value)
             
             if (func_name != "") {
                 var_value = process_variable_function(var_name, func_name, func_arg, base_value)
@@ -130,8 +134,10 @@ function evaluate_set(token_id,    condition, var_name, var_value, child_count, 
         gsub(/^[ \t]+|[ \t]+$/, "", var_value)
         
         evaluated_value = evaluate_set_value(var_value)
+        log_debug("evaluate_set: var_name=[%s] evaluated_value=[%s] before set_var", var_name, evaluated_value)
         set_var(var_name, evaluated_value)
-        ENVIRON[var_name] = evaluated_value
+        # set_var now automatically syncs to ENVIRON, so we don't need explicit sync here
+        log_debug("evaluate_set: var_name=[%s] set_var done, ENVIRON[%s]=[%s] get_var=[%s]", var_name, var_name, ENVIRON[var_name], get_var(var_name))
         
         if (match(var_name, /^(.+)_parts_[0-9]+$/)) {
             vars[var_name] = evaluated_value

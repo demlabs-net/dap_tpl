@@ -47,6 +47,9 @@ function set_var(var_name, value) {
         push_context()
     }
     contexts[context_level]["vars"][var_name] = value
+    # CRITICAL: Always sync to ENVIRON for cross-iteration visibility
+    # This ensures variables set inside for loops are visible in subsequent iterations
+    ENVIRON[var_name] = value
 }
 
 # Get a variable value (searches from current context up to root)
