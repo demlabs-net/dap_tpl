@@ -8,4 +8,5 @@
             NON_VOID_BRANCH: {{type}}
         {{/if}}
     {{/if}}
+    {{/set}}
 {{/for}}

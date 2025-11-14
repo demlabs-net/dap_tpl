@@ -152,9 +152,52 @@ function evaluate_set(token_id,    condition, var_name, var_value, child_count, 
     result_token_id = create_token("root", "", metadata)
     
     child_count = get_children_count(token_id)
+    
+    # Debug output for nested if tokens
+    if (var_name == "macro_name") {
+        printf "DEBUG evaluate_set: token_id=%d child_count=%d\n", token_id, child_count > "/dev/stderr"
+        for (i = 1; i <= child_count; i++) {
+            child_id = get_child(token_id, i)
+            child_type = get_token_type(child_id)
+            child_children = get_children_count(child_id)
+            condition = get_token_metadata(child_id, "condition")
+            printf "DEBUG evaluate_set: token_id=%d child[%d]=%d type=%s children=%d condition=[%s]\n", token_id, i, child_id, child_type, child_children, condition > "/dev/stderr"
+            # Check nested children
+            if (child_type == "if" && child_children > 0) {
+                for (j = 1; j <= child_children; j++) {
+                    grandchild_id = get_child(child_id, j)
+                    grandchild_type = get_token_type(grandchild_id)
+                    grandchild_condition = get_token_metadata(grandchild_id, "condition")
+                    grandchild_children = get_children_count(grandchild_id)
+                    printf "DEBUG evaluate_set:   grandchild[%d]=%d type=%s children=%d condition=[%s]\n", j, grandchild_id, grandchild_type, grandchild_children, grandchild_condition > "/dev/stderr"
+                }
+            }
+        }
+    }
+    
     for (i = 1; i <= child_count; i++) {
         child_id = get_child(token_id, i)
+        child_type = get_token_type(child_id)
+        # Debug output for if tokens
+        if (child_type == "if") {
+            condition = get_token_metadata(child_id, "condition")
+            if (condition ~ /type.*==.*void/) {
+                printf "DEBUG evaluate_set: BEFORE add_child, child_id=%d type=%s children=%d condition=[%s]\n", child_id, child_type, get_children_count(child_id), condition > "/dev/stderr"
+            }
+        }
         add_child(result_token_id, child_id)
+        # Debug output for if tokens
+        if (child_type == "if") {
+            condition = get_token_metadata(child_id, "condition")
+            if (condition ~ /type.*==.*void/) {
+                printf "DEBUG evaluate_set: AFTER add_child, child_id=%d type=%s children=%d\n", child_id, child_type, get_children_count(child_id) > "/dev/stderr"
+            }
+        }
+    }
+    
+    # Debug output
+    if (var_name == "macro_name") {
+        printf "DEBUG evaluate_set: AFTER add_child, result_token_id=%d children=%d\n", result_token_id, get_children_count(result_token_id) > "/dev/stderr"
     }
     
     return result_token_id

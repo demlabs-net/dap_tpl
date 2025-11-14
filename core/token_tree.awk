@@ -88,7 +88,7 @@ function get_child(token_id, child_idx) {
 # Parameters:
 #   token_id - root token ID to clone
 # Returns: new root token ID
-function clone_subtree(token_id,    new_id, type, value, metadata, child_count, i, child_id, new_child_id, key) {
+function clone_subtree(token_id,    new_id, type, value, metadata, child_count, i, child_id, new_child_id, key, condition) {
     if (!(token_id in tokens)) {
         return 0
     }
@@ -107,11 +107,28 @@ function clone_subtree(token_id,    new_id, type, value, metadata, child_count, 
     
     # Clone children recursively
     child_count = get_children_count(token_id)
+    
+    # Debug output for if tokens with type == 'void' condition
+    if (type == "if") {
+        condition = metadata["condition"]
+        if (condition ~ /type.*==.*void/) {
+            printf "DEBUG clone_subtree: BEFORE clone, token_id=%d type=%s children=%d condition=[%s]\n", token_id, type, child_count, condition > "/dev/stderr"
+        }
+    }
+    
     for (i = 1; i <= child_count; i++) {
         child_id = get_child(token_id, i)
         new_child_id = clone_subtree(child_id)
         if (new_child_id > 0) {
             add_child(new_id, new_child_id)
+        }
+    }
+    
+    # Debug output for if tokens with type == 'void' condition
+    if (type == "if") {
+        condition = metadata["condition"]
+        if (condition ~ /type.*==.*void/) {
+            printf "DEBUG clone_subtree: AFTER clone, new_id=%d type=%s children=%d condition=[%s]\n", new_id, type, get_children_count(new_id), condition > "/dev/stderr"
         }
     }
     

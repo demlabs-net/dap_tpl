@@ -50,9 +50,10 @@ function evaluate_token(token_id,    token_type, evaluated_id, child_count, i, c
         return token_id
     }
     
-    # Debug output for if tokens
+    # Debug output for if tokens - ALWAYS print for ALL if tokens
     if (token_type == "if") {
         condition = get_token_metadata(token_id, "condition")
+        printf "DEBUG evaluate_token: BEFORE dispatch_evaluator, token_id=%d child_count=%d condition=[%s]\n", token_id, get_children_count(token_id), condition > "/dev/stderr"
         if (condition ~ /type.*==.*void/) {
             log_debug("evaluate_token: BEFORE dispatch_evaluator, token_id=%d child_count=%d", token_id, get_children_count(token_id))
         }
@@ -66,9 +67,11 @@ function evaluate_token(token_id,    token_type, evaluated_id, child_count, i, c
         evaluated_id = dispatch_evaluator(func_name, token_id)
     }
     
-    # Debug output for if tokens
+    # Debug output for if tokens - ALWAYS print for ALL if tokens
     if (token_type == "if") {
         condition = get_token_metadata(token_id, "condition")
+        printf "DEBUG evaluate_token: AFTER dispatch_evaluator, evaluated_id=%d evaluated_type=%s evaluated_children=%d\n", evaluated_id, get_token_type(evaluated_id), get_children_count(evaluated_id) > "/dev/stderr"
+        printf "DEBUG evaluate_token: original token_id=%d child_count=%d condition=[%s]\n", token_id, get_children_count(token_id), condition > "/dev/stderr"
         if (condition ~ /type.*==.*void/) {
             log_debug("evaluate_token: AFTER dispatch_evaluator, evaluated_id=%d evaluated_type=%s evaluated_children=%d", evaluated_id, get_token_type(evaluated_id), get_children_count(evaluated_id))
             log_debug("evaluate_token: original token_id=%d child_count=%d", token_id, get_children_count(token_id))
@@ -120,7 +123,21 @@ function evaluate_token(token_id,    token_type, evaluated_id, child_count, i, c
                 delete new_children
                 for (i = 1; i <= child_count; i++) {
                     child_id = get_child(evaluated_id, i)
+                    child_type = get_token_type(child_id)
+                    # Debug output for if tokens
+                    if (child_type == "if") {
+                        condition = get_token_metadata(child_id, "condition")
+                        if (condition ~ /type.*==.*void/) {
+                            printf "DEBUG evaluate_token: BEFORE evaluate_token for set child, child_id=%d type=%s children=%d condition=[%s]\n", child_id, child_type, get_children_count(child_id), condition > "/dev/stderr"
+                        }
+                    }
                     evaluated_child_id = evaluate_token(child_id)
+                    if (child_type == "if") {
+                        condition = get_token_metadata(child_id, "condition")
+                        if (condition ~ /type.*==.*void/) {
+                            printf "DEBUG evaluate_token: AFTER evaluate_token for set child, evaluated_child_id=%d type=%s children=%d\n", evaluated_child_id, get_token_type(evaluated_child_id), get_children_count(evaluated_child_id) > "/dev/stderr"
+                        }
+                    }
                     if (evaluated_child_id > 0) {
                         new_child_count++
                         new_children[new_child_count] = evaluated_child_id

@@ -33,7 +33,45 @@ function tokenize(template_text,    root_id) {
 #   parent_id - parent token ID
 #   start_line - starting line number (for tracking)
 # Returns: number of characters consumed, or -1 if closing tag found
-function parse_content(content, parent_id, start_line,    pos, text_start, marker_pos, marker_end, marker_text, token_id, construct_end, inner_content, else_pos, else_content, result, consumed) {
+function parse_content(content, parent_id, start_line,    pos, text_start, marker_pos, marker_end, marker_text, token_id, construct_end, inner_content, else_pos, else_content, result, consumed, parent_type, parent_condition) {
+    # Debug output for set tokens
+    parent_type = get_token_type(parent_id)
+    if (parent_type == "set") {
+        printf "DEBUG parse_content: START for set, parent_id=%d content_length=%d content=[%s]\n", parent_id, length(content), substr(content, 1, 200) > "/dev/stderr"
+        printf "DEBUG parse_content: set hex content=" > "/dev/stderr"
+        for (i = 1; i <= 50 && i <= length(content); i++) {
+            c = substr(content, i, 1)
+            if (c == "\n") printf "\\n" > "/dev/stderr"
+            else if (c == "\r") printf "\\r" > "/dev/stderr"
+            else if (c == "\t") printf "\\t" > "/dev/stderr"
+            else printf "%s", c > "/dev/stderr"
+        }
+        printf "\n" > "/dev/stderr"
+    }
+    # Debug output for if tokens (parent is if)
+    if (parent_type == "if") {
+        parent_condition = get_token_metadata(parent_id, "condition")
+        if (parent_condition ~ /macro_name/ && content ~ /type.*==.*void/) {
+            printf "DEBUG parse_content: START for nested if, parent_id=%d parent_type=%s parent_condition=[%s] content_length=%d\n", parent_id, parent_type, parent_condition, length(content) > "/dev/stderr"
+            printf "DEBUG parse_content: nested if hex content=" > "/dev/stderr"
+            for (i = 1; i <= 150 && i <= length(content); i++) {
+                c = substr(content, i, 1)
+                if (c == "\n") printf "\\n" > "/dev/stderr"
+                else if (c == "\r") printf "\\r" > "/dev/stderr"
+                else if (c == "\t") printf "\\t" > "/dev/stderr"
+                else printf "%s", c > "/dev/stderr"
+            }
+            printf "\n" > "/dev/stderr"
+        }
+    }
+    # Debug output for if tokens with type == 'void' condition - check if parent is if token
+    if (parent_type == "if") {
+        parent_condition = get_token_metadata(parent_id, "condition")
+        if (parent_condition ~ /macro_name/ && content ~ /type.*==.*void/) {
+            printf "DEBUG parse_content: START, parent_id=%d parent_type=%s parent_condition=[%s] content_length=%d content=[%s]\n", parent_id, parent_type, parent_condition, length(content), substr(content, 1, 150) > "/dev/stderr"
+        }
+    }
+    
     pos = 1
     
     while (pos <= length(content)) {
@@ -104,6 +142,12 @@ function parse_content(content, parent_id, start_line,    pos, text_start, marke
             # Construct found
             construct_type = get_token_type(token_id)
             
+            # Debug output for ALL if tokens
+            if (construct_type == "if") {
+                condition = get_token_metadata(token_id, "condition")
+                printf "DEBUG parse_content: found if token, token_id=%d condition=[%s] parent_id=%d\n", token_id, condition, parent_id > "/dev/stderr"
+            }
+            
             # Check if it's a self-contained construct (using registry)
             if (is_self_contained(construct_type)) {
                 # Check if it has a content parser for special handling
@@ -124,21 +168,116 @@ function parse_content(content, parent_id, start_line,    pos, text_start, marke
             
             # Find its content and closing tag
             content_start_pos = actual_pos + 2 + marker_end + 1
+            # Debug output for if tokens with type == 'void' condition
+            if (construct_type == "if") {
+                condition = get_token_metadata(token_id, "condition")
+                if (condition ~ /type.*==.*void/) {
+                    printf "DEBUG parse_content: BEFORE find_construct_content, token_id=%d content_start_pos=%d content_length=%d\n", token_id, content_start_pos, length(content) > "/dev/stderr"
+                    printf "DEBUG parse_content: content from content_start_pos=[%s]\n", substr(content, content_start_pos, 50) > "/dev/stderr"
+                }
+            }
+            # Debug output for set tokens
+            if (construct_type == "set") {
+                printf "DEBUG parse_content: BEFORE find_construct_content for set, token_id=%d actual_pos=%d marker_end=%d content_start_pos=%d content_length=%d\n", token_id, actual_pos, marker_end, content_start_pos, length(content) > "/dev/stderr"
+                printf "DEBUG parse_content: set, content from actual_pos=[%s]\n", substr(content, actual_pos, 100) > "/dev/stderr"
+                printf "DEBUG parse_content: set, content from content_start_pos=[%s]\n", substr(content, content_start_pos, 100) > "/dev/stderr"
+                printf "DEBUG parse_content: set, PARENT_ID=%d PARENT_TYPE=[%s]\n", parent_id, get_token_type(parent_id) > "/dev/stderr"
+                printf "DEBUG parse_content: set, full content=[%s]\n", content > "/dev/stderr"
+            }
+            # Debug output for if tokens with type == 'void' condition
+            if (construct_type == "if") {
+                condition = get_token_metadata(token_id, "condition")
+                if (condition ~ /type.*==.*void/) {
+                    printf "DEBUG parse_content: BEFORE find_construct_content for nested if, token_id=%d actual_pos=%d marker_end=%d content_start_pos=%d content_length=%d\n", token_id, actual_pos, marker_end, content_start_pos, length(content) > "/dev/stderr"
+                    printf "DEBUG parse_content: nested if, content from actual_pos=[%s]\n", substr(content, actual_pos, 100) > "/dev/stderr"
+                    printf "DEBUG parse_content: nested if, content from content_start_pos=[%s]\n", substr(content, content_start_pos, 100) > "/dev/stderr"
+                }
+            }
             result = find_construct_content(content, content_start_pos, marker_text, token_id, construct_type, start_line)
             construct_end = result
+            # Debug output for if tokens with type == 'void' condition
+            if (construct_type == "if") {
+                condition = get_token_metadata(token_id, "condition")
+                if (condition ~ /type.*==.*void/) {
+                    printf "DEBUG parse_content: find_construct_content returned construct_end=%d for token_id=%d content_start_pos=%d\n", construct_end, token_id, content_start_pos > "/dev/stderr"
+                    if (construct_end > 0) {
+                        printf "DEBUG parse_content: nested if, content from content_start_pos=[%s]\n", substr(content, content_start_pos, 50) > "/dev/stderr"
+                        printf "DEBUG parse_content: nested if, content around construct_end=[%s]\n", substr(content, construct_end - 10, 20) > "/dev/stderr"
+                    }
+                }
+            }
             
             if (construct_end > 0) {
                 # Extract inner content (between opening and closing tags)
+                if (construct_type == "set") {
+                    printf "DEBUG parse_content: BEFORE substr for set, token_id=%d content_start_pos=%d construct_end=%d content_length=%d\n", token_id, content_start_pos, construct_end, length(content) > "/dev/stderr"
+                    printf "DEBUG parse_content: set, content around content_start_pos=[%s]\n", substr(content, content_start_pos - 10, 60) > "/dev/stderr"
+                    printf "DEBUG parse_content: set, content around construct_end=[%s]\n", substr(content, construct_end - 10, 60) > "/dev/stderr"
+                }
                 inner_content = substr(content, content_start_pos, construct_end - content_start_pos)
+                
+                # Debug output for ALL constructs
+                if (construct_type == "if") {
+                    condition = get_token_metadata(token_id, "condition")
+                    printf "DEBUG parse_content: BEFORE branch_parser, token_id=%d type=%s children=%d condition=[%s] inner_content_length=%d inner_content=[%s]\n", token_id, construct_type, get_children_count(token_id), condition, length(inner_content), substr(inner_content, 1, 100) > "/dev/stderr"
+                    if (condition ~ /macro_name/) {
+                        printf "DEBUG parse_content: outer if, full inner_content=[%s]\n", inner_content > "/dev/stderr"
+                    }
+                    if (condition ~ /type.*==.*void/) {
+                        printf "DEBUG parse_content: nested if BEFORE branch_parser, token_id=%d inner_content_length=%d inner_content=[%s]\n", token_id, length(inner_content), substr(inner_content, 1, 150) > "/dev/stderr"
+                    }
+                }
+                if (construct_type == "set") {
+                    condition = get_token_metadata(token_id, "condition")
+                    printf "DEBUG parse_content: AFTER substr for set, token_id=%d inner_content_length=%d content_start_pos=%d construct_end=%d\n", token_id, length(inner_content), content_start_pos, construct_end > "/dev/stderr"
+                    printf "DEBUG parse_content: set, content length=%d content_start_pos=%d\n", length(content), content_start_pos > "/dev/stderr"
+                    printf "DEBUG parse_content: set, content from content_start_pos=[%s]\n", substr(content, content_start_pos, 50) > "/dev/stderr"
+                    printf "DEBUG parse_content: set, inner_content first 100 chars=[%s]\n", substr(inner_content, 1, 100) > "/dev/stderr"
+                }
                 
                 # Check if this construct has a branch parser registered
                 branch_parser_func = get_branch_parser(construct_type)
                 if (branch_parser_func != "") {
                     # Use construct-specific branch parser via dispatch
+                    if (construct_type == "set") {
+                        printf "DEBUG parse_content: BEFORE dispatch_branch_parser for set, token_id=%d inner_content_length=%d inner_content=[%s]\n", token_id, length(inner_content), substr(inner_content, 1, 200) > "/dev/stderr"
+                    }
+                    if (construct_type == "if") {
+                        condition = get_token_metadata(token_id, "condition")
+                        if (condition ~ /type.*==.*void/) {
+                            printf "DEBUG parse_content: nested if BEFORE dispatch_branch_parser, token_id=%d branch_parser_func=[%s]\n", token_id, branch_parser_func > "/dev/stderr"
+                        }
+                    }
                     dispatch_branch_parser(construct_type, inner_content, token_id, start_line)
+                    if (construct_type == "if") {
+                        condition = get_token_metadata(token_id, "condition")
+                        if (condition ~ /type.*==.*void/) {
+                            printf "DEBUG parse_content: nested if AFTER dispatch_branch_parser, token_id=%d children=%d\n", token_id, get_children_count(token_id) > "/dev/stderr"
+                        }
+                    }
                 } else {
                     # No branch parser - parse normally
+                    if (construct_type == "set") {
+                        printf "DEBUG parse_content: BEFORE parse_content for set (no branch parser), token_id=%d inner_content_length=%d inner_content=[%s]\n", token_id, length(inner_content), substr(inner_content, 1, 200) > "/dev/stderr"
+                        printf "DEBUG parse_content: set hex inner_content=" > "/dev/stderr"
+                        for (i = 1; i <= 50 && i <= length(inner_content); i++) {
+                            c = substr(inner_content, i, 1)
+                            if (c == "\n") printf "\\n" > "/dev/stderr"
+                            else if (c == "\r") printf "\\r" > "/dev/stderr"
+                            else if (c == "\t") printf "\\t" > "/dev/stderr"
+                            else printf "%s", c > "/dev/stderr"
+                        }
+                        printf "\n" > "/dev/stderr"
+                    }
                     parse_content(inner_content, token_id, start_line)
+                }
+                
+                # Debug output for if tokens with type == 'void' condition
+                if (construct_type == "if") {
+                    condition = get_token_metadata(token_id, "condition")
+                    if (condition ~ /type.*==.*void/) {
+                        printf "DEBUG parse_content: AFTER branch_parser, token_id=%d type=%s children=%d condition=[%s]\n", token_id, construct_type, get_children_count(token_id), condition > "/dev/stderr"
+                    }
                 }
                 
                 # Add construct to parent
@@ -214,7 +353,49 @@ function parse_construct_marker(marker_text, pos, start_line,    construct_type,
 #   construct_type - construct type
 #   start_line - starting line number
 # Returns: absolute position of closing tag or 0
-function find_construct_content(content, start_pos, opening_marker, token_id, construct_type, start_line,    pos, marker_pos, marker_end, marker_text, depth, closing_tag, actual_marker_pos) {
+function find_construct_content(content, start_pos, opening_marker, token_id, construct_type, start_line,    pos, marker_pos, marker_end, marker_text, depth, closing_tag, actual_marker_pos, condition) {
+    # Debug output for ALL constructs
+    if (construct_type == "if") {
+        condition = get_token_metadata(token_id, "condition")
+        printf "DEBUG find_construct_content: START, token_id=%d construct_type=%s condition=[%s] start_pos=%d content_length=%d\n", token_id, construct_type, condition, start_pos, length(content) > "/dev/stderr"
+        if (condition ~ /macro_name/) {
+            printf "DEBUG find_construct_content: outer if, content from start_pos=[%s]\n", substr(content, start_pos, 100) > "/dev/stderr"
+            printf "DEBUG find_construct_content: outer if, full content=[%s]\n", substr(content, 1, 200) > "/dev/stderr"
+        }
+        if (condition ~ /type.*==.*void/) {
+            printf "DEBUG find_construct_content: nested if, content_length=%d start_pos=%d\n", length(content), start_pos > "/dev/stderr"
+            printf "DEBUG find_construct_content: nested if, content from start_pos=[%s]\n", substr(content, start_pos, 100) > "/dev/stderr"
+            printf "DEBUG find_construct_content: nested if, full content hex: " > "/dev/stderr"
+            for (i = 1; i <= length(content) && i <= 150; i++) {
+                c = substr(content, i, 1)
+                if (c == "\n") printf "\\n" > "/dev/stderr"
+                else if (c == "\r") printf "\\r" > "/dev/stderr"
+                else if (c == "\t") printf "\\t" > "/dev/stderr"
+                else printf "%s", c > "/dev/stderr"
+            }
+            printf "\n" > "/dev/stderr"
+        }
+    }
+    if (construct_type == "set") {
+        condition = get_token_metadata(token_id, "condition")
+        printf "DEBUG find_construct_content: START for set, token_id=%d condition=[%s] start_pos=%d content_length=%d\n", token_id, condition, start_pos, length(content) > "/dev/stderr"
+        # Use od -c to see non-printable characters
+        printf "DEBUG find_construct_content: set, first 50 chars hex: " > "/dev/stderr"
+        for (i = 1; i <= 50 && i <= length(content); i++) {
+            c = substr(content, i, 1)
+            if (c == "\n") printf "\\n" > "/dev/stderr"
+            else if (c == "\r") printf "\\r" > "/dev/stderr"
+            else if (c == "\t") printf "\\t" > "/dev/stderr"
+            else printf "%s", c > "/dev/stderr"
+        }
+        printf "\n" > "/dev/stderr"
+    }
+    if (construct_type == "for") {
+        condition = get_token_metadata(token_id, "condition")
+        printf "DEBUG find_construct_content: START for for, token_id=%d condition=[%s] start_pos=%d content_length=%d\n", token_id, condition, start_pos, length(content) > "/dev/stderr"
+        printf "DEBUG find_construct_content: for, content from start_pos=[%s]\n", substr(content, start_pos, 100) > "/dev/stderr"
+    }
+    
     # Get closing tag from registry
     closing_tag = ""
     for (tag in CLOSING_PATTERNS) {
@@ -226,12 +407,58 @@ function find_construct_content(content, start_pos, opening_marker, token_id, co
     
     if (closing_tag == "") {
         # No closing tag registered - treat as self-contained
+        if (construct_type == "if") {
+            condition = get_token_metadata(token_id, "condition")
+            if (condition ~ /type.*==.*void/) {
+                printf "DEBUG find_construct_content: NO closing tag, returning 0\n" > "/dev/stderr"
+            }
+        }
+        if (construct_type == "set") {
+            printf "DEBUG find_construct_content: set NO closing tag, returning 0\n" > "/dev/stderr"
+        }
         return 0
+    }
+    
+    # Debug output for set tokens
+    if (construct_type == "set") {
+        printf "DEBUG find_construct_content: set closing_tag=[%s]\n", closing_tag > "/dev/stderr"
+    }
+    # Debug output for nested if tokens
+    if (construct_type == "if") {
+        condition = get_token_metadata(token_id, "condition")
+        if (condition ~ /type.*==.*void/) {
+            printf "DEBUG find_construct_content: nested if closing_tag=[%s]\n", closing_tag > "/dev/stderr"
+        }
     }
     
     # Remove ^ and $ from pattern for matching
     closing_pattern = closing_tag
-    gsub(/^\^|\$$/, "", closing_pattern)
+    # Remove ^ at the beginning
+    if (substr(closing_pattern, 1, 1) == "^") {
+        closing_pattern = substr(closing_pattern, 2)
+    }
+    # Remove $ at the end
+    if (substr(closing_pattern, length(closing_pattern)) == "$") {
+        closing_pattern = substr(closing_pattern, 1, length(closing_pattern) - 1)
+    }
+    
+    # Escape special regex characters in closing_pattern
+    # This is necessary because closing_pattern is used in match() which treats it as a regex
+    escaped_closing_pattern = closing_pattern
+    gsub(/[.*+?^${}()|[\]\\]/, "\\\\&", escaped_closing_pattern)
+    closing_pattern = escaped_closing_pattern
+    
+    # Debug output for set tokens
+    if (construct_type == "set") {
+        printf "DEBUG find_construct_content: set closing_pattern=[%s] after removal and escaping\n", closing_pattern > "/dev/stderr"
+    }
+    # Debug output for nested if tokens
+    if (construct_type == "if") {
+        condition = get_token_metadata(token_id, "condition")
+        if (condition ~ /type.*==.*void/) {
+            printf "DEBUG find_construct_content: nested if closing_pattern=[%s] after removal and escaping\n", closing_pattern > "/dev/stderr"
+        }
+    }
     
     depth = 1
     pos = start_pos
@@ -239,6 +466,13 @@ function find_construct_content(content, start_pos, opening_marker, token_id, co
     while (pos <= length(content)) {
         marker_pos = match(substr(content, pos), /{{/)
         if (marker_pos == 0) {
+            # Debug output for if tokens with type == 'void' condition
+            if (construct_type == "if") {
+                condition = get_token_metadata(token_id, "condition")
+                if (condition ~ /type.*==.*void/) {
+                    printf "DEBUG find_construct_content: no more markers, pos=%d content_length=%d, returning 0\n", pos, length(content) > "/dev/stderr"
+                }
+            }
             break
         }
         
@@ -250,6 +484,38 @@ function find_construct_content(content, start_pos, opening_marker, token_id, co
         }
         
         marker_text = substr(content, actual_marker_pos + 2, marker_end - 1)
+        
+        # Debug output for nested if tokens
+        if (construct_type == "if") {
+            condition = get_token_metadata(token_id, "condition")
+            if (condition ~ /type.*==.*void/) {
+                printf "DEBUG find_construct_content: nested if marker at pos=%d marker_text=[%s] depth=%d\n", actual_marker_pos, marker_text, depth > "/dev/stderr"
+            }
+        }
+        
+        # Debug output for set tokens
+        if (construct_type == "set" && actual_marker_pos >= 250 && actual_marker_pos <= 270) {
+            printf "DEBUG find_construct_content: set marker at pos=%d marker_text=[%s] marker_end=%d\n", actual_marker_pos, marker_text, marker_end > "/dev/stderr"
+            printf "DEBUG find_construct_content: set content around pos=[%s]\n", substr(content, actual_marker_pos - 5, 20) > "/dev/stderr"
+            # Show hex representation
+            printf "DEBUG find_construct_content: set hex around pos=" > "/dev/stderr"
+            for (i = actual_marker_pos - 5; i <= actual_marker_pos + 20 && i <= length(content); i++) {
+                c = substr(content, i, 1)
+                if (c == "\n") printf "\\n" > "/dev/stderr"
+                else if (c == "\r") printf "\\r" > "/dev/stderr"
+                else if (c == "\t") printf "\\t" > "/dev/stderr"
+                else printf "%s", c > "/dev/stderr"
+            }
+            printf "\n" > "/dev/stderr"
+        }
+        
+        # Debug output for if tokens with type == 'void' condition
+        if (construct_type == "if") {
+            condition = get_token_metadata(token_id, "condition")
+            if (condition ~ /type.*==.*void/ && depth <= 2) {
+                printf "DEBUG find_construct_content: marker_text=[%s] depth=%d\n", marker_text, depth > "/dev/stderr"
+            }
+        }
         
         # Check for matching opening tag (same construct type)
         for (pattern_type in CONSTRUCT_PATTERNS) {
@@ -263,9 +529,38 @@ function find_construct_content(content, start_pos, opening_marker, token_id, co
         }
         
         # Check for matching closing tag
+        if (construct_type == "if") {
+            condition = get_token_metadata(token_id, "condition")
+            if (condition ~ /type.*==.*void/) {
+                match_result = match(marker_text, closing_pattern)
+                printf "DEBUG find_construct_content: nested if checking match, marker_text=[%s] closing_pattern=[%s] match_result=%d\n", marker_text, closing_pattern, match_result > "/dev/stderr"
+            }
+        }
         if (match(marker_text, closing_pattern)) {
             depth--
+            # Debug output for set tokens
+            if (construct_type == "set") {
+                printf "DEBUG find_construct_content: set found closing tag, marker_text=[%s] closing_pattern=[%s] depth=%d\n", marker_text, closing_pattern, depth > "/dev/stderr"
+            }
+            # Debug output for nested if tokens
+            if (construct_type == "if") {
+                condition = get_token_metadata(token_id, "condition")
+                if (condition ~ /type.*==.*void/) {
+                    printf "DEBUG find_construct_content: nested if found closing tag, marker_text=[%s] closing_pattern=[%s] depth=%d\n", marker_text, closing_pattern, depth > "/dev/stderr"
+                }
+            }
+            # Debug output for if tokens with type == 'void' condition
+            if (construct_type == "if" && depth == 0) {
+                condition = get_token_metadata(token_id, "condition")
+                if (condition ~ /type.*==.*void/) {
+                    printf "DEBUG find_construct_content: found closing tag at depth=0, actual_marker_pos=%d construct_type=%s marker_text=[%s]\n", actual_marker_pos, construct_type, marker_text > "/dev/stderr"
+                }
+            }
             if (depth == 0) {
+                # Debug output for set tokens
+                if (construct_type == "set") {
+                    printf "DEBUG find_construct_content: set found closing tag at depth=0, returning actual_marker_pos=%d\n", actual_marker_pos > "/dev/stderr"
+                }
                 # Return absolute position of closing tag
                 return actual_marker_pos
             }
@@ -276,6 +571,13 @@ function find_construct_content(content, start_pos, opening_marker, token_id, co
             if (is_branch_marker(construct_type, marker_text)) {
                 # Found branch marker at top level - this is valid, continue searching
                 # The branch parser will handle it
+                # Debug output for if tokens with type == 'void' condition
+                if (construct_type == "if") {
+                    condition = get_token_metadata(token_id, "condition")
+                    if (condition ~ /type.*==.*void/) {
+                        printf "DEBUG find_construct_content: found branch marker at depth=1, marker_text=[%s] construct_type=%s\n", marker_text, construct_type > "/dev/stderr"
+                    }
+                }
             }
         }
         

@@ -226,12 +226,42 @@ function evaluate_for(token_id,    condition, loop_vars, loop_var_count, array_n
         child_count = get_children_count(token_id)
         for (j = 1; j <= child_count; j++) {
             child_id = get_child(token_id, j)
+            child_type = get_token_type(child_id)
+            
+            # Debug output for set tokens
+            if (child_type == "set") {
+                condition = get_token_metadata(child_id, "condition")
+                if (condition ~ /macro_name/) {
+                    printf "DEBUG evaluate_for: BEFORE clone, child_id=%d type=%s children=%d condition=[%s]\n", child_id, child_type, get_children_count(child_id), condition > "/dev/stderr"
+                }
+            }
             
             # Clone subtree for this iteration
             cloned_child_id = clone_subtree(child_id)
             if (cloned_child_id > 0) {
+                # Debug output for set tokens
+                if (child_type == "set") {
+                    condition = get_token_metadata(child_id, "condition")
+                    if (condition ~ /macro_name/) {
+                        printf "DEBUG evaluate_for: AFTER clone, cloned_child_id=%d type=%s children=%d\n", cloned_child_id, get_token_type(cloned_child_id), get_children_count(cloned_child_id) > "/dev/stderr"
+                    }
+                }
+                # Debug output for if tokens
+                if (child_type == "if") {
+                    condition = get_token_metadata(child_id, "condition")
+                    if (condition ~ /type.*==.*void/) {
+                        printf "DEBUG evaluate_for: BEFORE clone, child_id=%d type=%s children=%d condition=[%s]\n", child_id, child_type, get_children_count(child_id), condition > "/dev/stderr"
+                        printf "DEBUG evaluate_for: AFTER clone, cloned_child_id=%d type=%s children=%d\n", cloned_child_id, get_token_type(cloned_child_id), get_children_count(cloned_child_id) > "/dev/stderr"
+                    }
+                }
                 # Evaluate cloned child recursively
                 evaluated_child_id = evaluate_token(cloned_child_id)
+                if (child_type == "if") {
+                    condition = get_token_metadata(child_id, "condition")
+                    if (condition ~ /type.*==.*void/) {
+                        printf "DEBUG evaluate_for: AFTER evaluate_token, evaluated_child_id=%d type=%s children=%d\n", evaluated_child_id, get_token_type(evaluated_child_id), get_children_count(evaluated_child_id) > "/dev/stderr"
+                    }
+                }
                 if (evaluated_child_id > 0) {
                     add_child(result_token_id, evaluated_child_id)
                     # Debug output (disabled by default - set DEBUG_FOR=1 to enable)

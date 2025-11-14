@@ -37,6 +37,7 @@ cat > "$TEST_TEMPLATE" << 'EOF'
             NON_VOID_BRANCH: {{type}}
         {{/if}}
     {{/if}}
+    {{/set}}
 {{/for}}
 EOF
 

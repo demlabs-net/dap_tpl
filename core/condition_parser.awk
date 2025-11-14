@@ -83,6 +83,19 @@ function evaluate_parsed_condition(parsed_cond,    parts, op, i) {
     split(parsed_cond, parts, "|")
     op = parts[1]
     
+    # Debug output for ALL comparisons with 'type'
+    if (op == "==" && parts[2] ~ /type/) {
+        log_debug("evaluate_parsed_condition: parsed_cond=[%s] op=[%s]", parsed_cond, op)
+        for (i = 1; i <= length(parts) && i <= 5; i++) {
+            log_debug("evaluate_parsed_condition: parts[%d]=[%s]", i, parts[i])
+        }
+        if ("type" in ENVIRON) {
+            log_debug("evaluate_parsed_condition: ENVIRON[type]=[%s]", ENVIRON["type"])
+        }
+        type_val = get_var("type")
+        log_debug("evaluate_parsed_condition: get_var(type)=[%s]", type_val)
+    }
+    
     # Logical operators
     if (op == "AND") {
         return evaluate_logical_and(parts)

@@ -164,6 +164,9 @@ generate_evaluator_dispatch() {
 generate_branch_parser_dispatch() {
     echo "# Dispatch function for branch parsers"
     echo "function dispatch_branch_parser(construct_type, content, token_id, start_line) {"
+    echo "    if (construct_type == \"set\") {"
+    echo "        printf \"DEBUG dispatch_branch_parser: START for set, token_id=%d content_length=%d content=[%s]\\n\", token_id, length(content), substr(content, 1, 200) > \"/dev/stderr\""
+    echo "    }"
     
     for construct in "${ALL_CONSTRUCTS[@]}"; do
         # Extract function name from definition
