@@ -49,10 +49,24 @@ test_set() {
         done
     fi
     
-    # Process template using compiled engine
-    local actual_output
-    actual_output=$(cd "$DAP_TPL_DIR" && gawk -f "$COMPILED_ENGINE" "$template_file" 2>&1)
-    local exit_code=$?
+    # Process template using compiled engine (check both stdout and stderr separately)
+    # Execute once and capture both stdout and stderr
+    local temp_stdout="/tmp/test_set_stdout_$$.txt"
+    local temp_stderr="/tmp/test_set_stderr_$$.txt"
+    local actual_output actual_stderr exit_code
+    
+    (cd "$DAP_TPL_DIR" && DEBUG_ENABLED=0 gawk -f "$COMPILED_ENGINE" "$template_file" > "$temp_stdout" 2>"$temp_stderr")
+    exit_code=$?
+    actual_output=$(cat "$temp_stdout")
+    actual_stderr=$(cat "$temp_stderr")
+    rm -f "$temp_stdout" "$temp_stderr"
+    
+    # Check stderr is empty (no errors)
+    if [ -n "$actual_stderr" ]; then
+        echo "  FAIL: Unexpected output in stderr: $actual_stderr"
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+        return 1
+    fi
     
     if [ $exit_code -ne 0 ]; then
         echo "  FAIL: Template processing failed with exit code $exit_code"

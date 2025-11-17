@@ -43,7 +43,7 @@ EOF
 
 echo "Test 1: RETURN_TYPES='void int' - should have 1 VOID and 1 NON-VOID"
 export RETURN_TYPES="void int"
-OUTPUT=$(cd "$DAP_TPL_DIR" && gawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>&1)
+OUTPUT=$(cd "$DAP_TPL_DIR" && gawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>/dev/null)
 
 # Check that void goes to VOID branch
 if ! echo "$OUTPUT" | grep -q "VOID_BRANCH: void"; then
@@ -70,7 +70,9 @@ if echo "$OUTPUT" | grep -q "NON_VOID_BRANCH: void"; then
 fi
 
 # Check that int does NOT go to VOID branch
-if echo "$OUTPUT" | grep -q "VOID_BRANCH: int"; then
+# Use exact match to avoid matching NON_VOID_BRANCH: int
+# Check for lines that start with VOID_BRANCH (not NON_VOID_BRANCH)
+if echo "$OUTPUT" | grep -qE "^[[:space:]]*VOID_BRANCH: int"; then
     echo "FAIL: int should NOT go to VOID_BRANCH"
     echo "Output:"
     echo "$OUTPUT" | cat -A
@@ -82,11 +84,14 @@ echo "PASS: Test 1 - void and int correctly routed"
 echo ""
 echo "Test 2: RETURN_TYPES='void int char' - should have 1 VOID and 2 NON-VOID"
 export RETURN_TYPES="void int char"
-OUTPUT2=$(cd "$DAP_TPL_DIR" && gawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>&1)
+OUTPUT2=$(cd "$DAP_TPL_DIR" && gawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>/dev/null)
 
-# Count occurrences
-VOID_COUNT=$(echo "$OUTPUT2" | grep -cE "^[[:space:]]*VOID_BRANCH:" || echo "0")
-NON_VOID_COUNT=$(echo "$OUTPUT2" | grep -cE "^[[:space:]]*NON_VOID_BRANCH:" || echo "0")
+# Count occurrences - use grep and wc for reliable counting
+VOID_COUNT=$(echo "$OUTPUT2" | grep -E "^[[:space:]]*VOID_BRANCH:" 2>/dev/null | wc -l)
+NON_VOID_COUNT=$(echo "$OUTPUT2" | grep -E "^[[:space:]]*NON_VOID_BRANCH:" 2>/dev/null | wc -l)
+# Remove whitespace
+VOID_COUNT=$((VOID_COUNT + 0))
+NON_VOID_COUNT=$((NON_VOID_COUNT + 0))
 
 if [ "$VOID_COUNT" != "1" ]; then
     echo "FAIL: Expected exactly 1 VOID_BRANCH, got $VOID_COUNT"
@@ -107,22 +112,26 @@ echo "PASS: Test 2 - correct branch counts"
 echo ""
 echo "Test 3: RETURN_TYPES='int char' - should have 0 VOID and 2 NON-VOID"
 export RETURN_TYPES="int char"
-OUTPUT3=$(cd "$DAP_TPL_DIR" && gawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>&1)
+OUTPUT3=$(cd "$DAP_TPL_DIR" && gawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>/dev/null)
 
-VOID_COUNT=$(echo "$OUTPUT3" | grep -cE "^[[:space:]]*VOID_BRANCH:" || echo "0")
-NON_VOID_COUNT=$(echo "$OUTPUT3" | grep -cE "^[[:space:]]*NON_VOID_BRANCH:" || echo "0")
+# Count occurrences - use grep and wc for reliable counting
+VOID_COUNT=$(echo "$OUTPUT3" | grep -E "^[[:space:]]*VOID_BRANCH:" 2>/dev/null | wc -l)
+NON_VOID_COUNT=$(echo "$OUTPUT3" | grep -E "^[[:space:]]*NON_VOID_BRANCH:" 2>/dev/null | wc -l)
+# Remove whitespace
+VOID_COUNT=$((VOID_COUNT + 0))
+NON_VOID_COUNT=$((NON_VOID_COUNT + 0))
 
 if [ "$VOID_COUNT" != "0" ]; then
     echo "FAIL: Expected 0 VOID_BRANCH, got $VOID_COUNT"
     echo "Output:"
-    echo "$OUTPUT3" | cat -A
+    echo "$OUTPUT3" | head -20
     exit 1
 fi
 
 if [ "$NON_VOID_COUNT" != "2" ]; then
     echo "FAIL: Expected exactly 2 NON_VOID_BRANCH, got $NON_VOID_COUNT"
     echo "Output:"
-    echo "$OUTPUT3" | cat -A
+    echo "$OUTPUT3" | head -20
     exit 1
 fi
 

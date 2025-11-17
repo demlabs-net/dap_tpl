@@ -112,7 +112,7 @@ function clone_subtree(token_id,    new_id, type, value, metadata, child_count, 
     if (type == "if") {
         condition = metadata["condition"]
         if (condition ~ /type.*==.*void/) {
-            printf "DEBUG clone_subtree: BEFORE clone, token_id=%d type=%s children=%d condition=[%s]\n", token_id, type, child_count, condition > "/dev/stderr"
+            log_debug("clone_subtree: BEFORE clone, token_id=%d type=%s children=%d condition=[%s]\n", token_id, type, child_count, condition)
         }
     }
     
@@ -128,7 +128,7 @@ function clone_subtree(token_id,    new_id, type, value, metadata, child_count, 
     if (type == "if") {
         condition = metadata["condition"]
         if (condition ~ /type.*==.*void/) {
-            printf "DEBUG clone_subtree: AFTER clone, new_id=%d type=%s children=%d condition=[%s]\n", new_id, type, get_children_count(new_id), condition > "/dev/stderr"
+            log_debug("clone_subtree: AFTER clone, new_id=%d type=%s children=%d condition=[%s]\n", new_id, type, get_children_count(new_id), condition)
         }
     }
     

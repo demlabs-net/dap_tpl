@@ -7,9 +7,14 @@
 @include "core/marker_parser.awk"
 @include "core/condition_parser.awk"
 @include "core/construct_registry.awk"
+@include "constructs/if/definition.awk"
+@include "constructs/for/definition.awk"
+@include "constructs/set/definition.awk"
+@include "constructs/if/branch_parser.awk"
 @include "constructs/if/evaluator.awk"
 @include "constructs/for/evaluator.awk"
 @include "constructs/set/evaluator.awk"
+@include "constructs/var/evaluator.awk"
 
 # Include dispatch function stubs for tests
 @include "tests/fixtures/dispatch_stubs.awk"
@@ -23,8 +28,12 @@
 @include "constructs/for/tokenizer.awk"
 @include "constructs/set/tokenizer.awk"
 @include "constructs/var/tokenizer.awk"
+@include "constructs/text/definition.awk"
+@include "constructs/text/process.awk"
 @include "constructs/text/render.awk"
+@include "constructs/root/definition.awk"
 @include "constructs/root/render.awk"
+@include "constructs/var/definition.awk"
 @include "constructs/var/render.awk"
 
 BEGIN {
@@ -285,6 +294,18 @@ function test_nested_if_in_for_loop_real_world() {
     if (for_child_count >= 1) {
         first_iter_id = get_child(for_result_id, 1)
         first_iter_type = get_token_type(first_iter_id)
+        first_iter_children = get_children_count(first_iter_id)
+        # Debug output - always print when test fails
+        if (first_iter_type != "root") {
+            printf "DEBUG test: first_iter_id=%d type=%s children=%d (expected root)\n", first_iter_id, first_iter_type, first_iter_children > "/dev/stderr"
+            # Check what children are
+            for (k = 1; k <= first_iter_children && k <= 3; k++) {
+                child_check_id = get_child(first_iter_id, k)
+                child_check_type = get_token_type(child_check_id)
+                child_check_children = get_children_count(child_check_id)
+                printf "DEBUG test:   child[%d]=%d type=%s children=%d\n", k, child_check_id, child_check_type, child_check_children > "/dev/stderr"
+            }
+        }
         test("for loop: first iteration is root (from set)", first_iter_type == "root")
         
         # Find inner if result in first iteration
@@ -443,21 +464,33 @@ function test_nested_if_in_for_loop_with_full_evaluation() {
             nonvoid_count = gsub(/NON-VOID: int/, "&", output)
             test("full pipeline: NON-VOID: int appears exactly once", nonvoid_count == 1)
             
-            # Should NOT contain "VOID: int"
-            void_int_found = (output ~ /VOID: int/)
+            # Should NOT contain "VOID: int" (on a single line, not across lines)
+            # Check each line separately to avoid false positives from multiline matches
+            void_int_found = 0
+            split(output, lines, "\n")
+            for (line_idx in lines) {
+                if (lines[line_idx] ~ /^[[:space:]]*VOID:[[:space:]]+int[[:space:]]*$/) {
+                    void_int_found = 1
+                    printf "DEBUG: Found VOID: int on line %d: [%s]\n", line_idx, lines[line_idx] > "/dev/stderr"
+                    break
+                }
+            }
             test("full pipeline: VOID: int does NOT appear", void_int_found == 0)
             
             # Should NOT contain "NON-VOID: void"
             nonvoid_void_found = (output ~ /NON-VOID: void/)
             test("full pipeline: NON-VOID: void does NOT appear", nonvoid_void_found == 0)
             
-            # Debug output
-            if (void_int_found || nonvoid_void_found || void_count != 1 || nonvoid_count != 1) {
-                printf "DEBUG: Output was:\n%s\n", output
-                printf "DEBUG: Output length: %d\n", length(output)
-                printf "DEBUG: eval_root_id: %d\n", eval_root_id
-                printf "DEBUG: eval_root type: %s\n", get_token_type(eval_root_id)
-                printf "DEBUG: eval_root children: %d\n", get_children_count(eval_root_id)
+            # Debug output (only if test fails)
+            if (output == "" || void_int_found || nonvoid_void_found || void_count != 1 || nonvoid_count != 1) {
+                # Debug output goes to stderr, but only if DEBUG_ENABLED is set
+                # In unit tests, we don't want debug output unless explicitly enabled
+                # Always print debug output when test fails, regardless of DEBUG_ENABLED
+                printf "DEBUG: Output was:\n%s\n", output > "/dev/stderr"
+                printf "DEBUG: Output length: %d\n", length(output) > "/dev/stderr"
+                printf "DEBUG: eval_root_id: %d\n", eval_root_id > "/dev/stderr"
+                printf "DEBUG: eval_root type: %s\n", get_token_type(eval_root_id) > "/dev/stderr"
+                printf "DEBUG: eval_root children: %d\n", get_children_count(eval_root_id) > "/dev/stderr"
                 
                 # Debug: check children types and rendering
                 child_count = get_children_count(eval_root_id)
@@ -469,7 +502,53 @@ function test_nested_if_in_for_loop_with_full_evaluation() {
                     skip_empty = get_token_metadata(child_id, "skip_empty_text")
                     # Test rendering this child
                     child_rendered = render_token(child_id)
-                    printf "DEBUG: child[%d]: type=%s value=[%s] children=%d skip_empty=%s rendered=[%s]\n", i, child_type, child_value, child_children, skip_empty, child_rendered
+                    printf "DEBUG: child[%d]: type=%s value=[%s] children=%d skip_empty=%s rendered=[%s]\n", i, child_type, child_value, child_children, skip_empty, child_rendered > "/dev/stderr"
+                    
+                    # Debug grandchildren of root child
+                    if (child_type == "root" && child_children > 0) {
+                        printf "DEBUG:   root child[%d] has %d grandchildren:\n", i, child_children > "/dev/stderr"
+                        for (k = 1; k <= child_children && k <= 5; k++) {
+                            grandchild_id = get_child(child_id, k)
+                            grandchild_type = get_token_type(grandchild_id)
+                            grandchild_value = get_token_value(grandchild_id)
+                            grandchild_children = get_children_count(grandchild_id)
+                            grandchild_rendered = render_token(grandchild_id)
+                            printf "DEBUG:     grandchild[%d]: type=%s value=[%s] children=%d rendered=[%s]\n", k, grandchild_type, grandchild_value, grandchild_children, grandchild_rendered > "/dev/stderr"
+                            
+                            # Debug great-grandchildren for root grandchildren
+                            if (grandchild_type == "root" && grandchild_children > 0) {
+                                printf "DEBUG:       root grandchild[%d] has %d great-grandchildren:\n", k, grandchild_children > "/dev/stderr"
+                                for (m = 1; m <= grandchild_children && m <= 5; m++) {
+                                    great_grandchild_id = get_child(grandchild_id, m)
+                                    great_grandchild_type = get_token_type(great_grandchild_id)
+                                    great_grandchild_value = get_token_value(great_grandchild_id)
+                                    great_grandchild_children = get_children_count(great_grandchild_id)
+                                    great_grandchild_rendered = render_token(great_grandchild_id)
+                                    printf "DEBUG:         great-grandchild[%d]: type=%s value=[%s] children=%d rendered=[%s]\n", m, great_grandchild_type, great_grandchild_value, great_grandchild_children, great_grandchild_rendered > "/dev/stderr"
+                                    
+                                    # Debug great-great-grandchildren for root great-grandchildren
+                                    if (great_grandchild_type == "root" && great_grandchild_children > 0) {
+                                        printf "DEBUG:           root great-grandchild[%d] has %d great-great-grandchildren:\n", m, great_grandchild_children > "/dev/stderr"
+                                        for (n = 1; n <= great_grandchild_children && n <= 5; n++) {
+                                            great_great_grandchild_id = get_child(great_grandchild_id, n)
+                                            great_great_grandchild_type = get_token_type(great_great_grandchild_id)
+                                            great_great_grandchild_value = get_token_value(great_great_grandchild_id)
+                                            great_great_grandchild_children = get_children_count(great_great_grandchild_id)
+                                            great_great_grandchild_rendered = render_token(great_great_grandchild_id)
+                                            printf "DEBUG:             great-great-grandchild[%d]: type=%s value=[%s] value_length=%d children=%d rendered=[%s] rendered_length=%d\n", n, great_great_grandchild_type, great_great_grandchild_value, length(great_great_grandchild_value), great_great_grandchild_children, great_great_grandchild_rendered, length(great_great_grandchild_rendered) > "/dev/stderr"
+                                            
+                                            # Debug var tokens
+                                            if (great_great_grandchild_type == "var") {
+                                                var_name = get_token_metadata(great_great_grandchild_id, "var_name")
+                                                var_value = get_var(var_name)
+                                                printf "DEBUG:               var token var_name=[%s] get_var=[%s] ENVIRON[%s]=[%s]\n", var_name, var_value, var_name, ENVIRON[var_name] > "/dev/stderr"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                     
                     # Check grandchildren
                     if (child_children > 0 && child_children <= 3) {
@@ -478,13 +557,18 @@ function test_nested_if_in_for_loop_with_full_evaluation() {
                             grandchild_type = get_token_type(grandchild_id)
                             grandchild_value = get_token_value(grandchild_id)
                             grandchild_rendered = render_token(grandchild_id)
-                            printf "DEBUG:   grandchild[%d]: type=%s value=[%s] rendered=[%s]\n", j, grandchild_type, grandchild_value, grandchild_rendered
+                            printf "DEBUG:   grandchild[%d]: type=%s value=[%s] rendered=[%s]\n", j, grandchild_type, grandchild_value, grandchild_rendered > "/dev/stderr"
                         }
                     }
                 }
             }
         }
     }
+}
+
+# Helper function for hex dump
+function ord(c) {
+    return sprintf("%d", c)
 }
 
 BEGIN {

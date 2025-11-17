@@ -35,13 +35,25 @@ fi
 
 echo "Using engine: ${ENGINE_PATH}"
 
-# Run template through engine with proper AWKPATH
+# Run template through engine with proper AWKPATH (check both stdout and stderr separately)
 (cd "${DAP_TPL_DIR}" && \
- env AWKPATH="${DAP_TPL_DIR}" gawk -f "${ENGINE_PATH}" "${TEST_TEMPLATE}" > "${TEST_OUTPUT}" 2>&1) || {
+ env AWKPATH="${DAP_TPL_DIR}" DEBUG_ENABLED=0 gawk -f "${ENGINE_PATH}" "${TEST_TEMPLATE}" > "${TEST_OUTPUT}" 2>"${TEST_OUTPUT}.stderr") || {
     echo "FAIL: Template processing failed"
     cat "${TEST_OUTPUT}"
+    if [ -s "${TEST_OUTPUT}.stderr" ]; then
+        echo "Stderr:"
+        cat "${TEST_OUTPUT}.stderr"
+    fi
     exit 1
 }
+
+# Check stderr is empty (no errors)
+if [ -s "${TEST_OUTPUT}.stderr" ]; then
+    echo "FAIL: Unexpected output in stderr:"
+    cat "${TEST_OUTPUT}.stderr"
+    exit 1
+fi
+rm -f "${TEST_OUTPUT}.stderr"
 
 # Check if output contains #set directives (should NOT)
 if grep -q "#set" "${TEST_OUTPUT}"; then

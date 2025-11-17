@@ -4,102 +4,68 @@
 set -e
 
 TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DAP_TPL_DIR="$(cd "$TEST_DIR/../../.." && pwd)"
-TEMPLATES_DIR="${TEST_DIR}/fixtures"
 
-export SCRIPTS_DIR="${DAP_TPL_DIR}"
-export TEMPLATES_DIR
-export AWKPATH="${DAP_TPL_DIR}"
+# Load common test fixtures (from parent fixtures directory)
+source "${TEST_DIR}/../fixtures/test_common.sh"
 
-mkdir -p "${TEST_DIR}/fixtures"
+# Initialize test environment
+init_test_env "$TEST_DIR"
 
-# Build engine and capture path
-ENGINE_OUTPUT=$("${DAP_TPL_DIR}/utils/build_engine.sh" 2>&1)
-COMPILED_ENGINE=$(echo "$ENGINE_OUTPUT" | grep "^ENGINE_PATH=" | cut -d'=' -f2-)
-if [ -z "$COMPILED_ENGINE" ] || [ ! -f "$COMPILED_ENGINE" ]; then
-    echo "ERROR: Failed to build engine or find engine file"
-    echo "$ENGINE_OUTPUT"
-    exit 1
-fi
+# Test template
+TEST_TEMPLATE="${TEST_DIR}/fixtures/test_elif.tpl"
+
+# Test function for a single elif test case
+test_elif_case() {
+    local var_value="$1"
+    local expected_output="$2"
+    local test_name="$3"
+    
+    export VAR="$var_value"
+    
+    # Run template
+    TEMP_STDOUT=""
+    TEMP_STDERR=""
+    OUTPUT=""
+    STDERR_OUTPUT=""
+    
+    if ! run_template "$TEST_TEMPLATE" TEMP_STDOUT TEMP_STDERR OUTPUT STDERR_OUTPUT; then
+        echo "FAIL: Template processing failed for VAR=$var_value ($test_name)"
+        cat "$TEMP_STDOUT"
+        cat "$TEMP_STDERR" >&2
+        cleanup_temp_files "$TEMP_STDOUT" "$TEMP_STDERR"
+        exit 1
+    fi
+    
+    # Check stderr is empty (no errors)
+    if ! check_stderr_empty "$STDERR_OUTPUT"; then
+        cleanup_temp_files "$TEMP_STDOUT" "$TEMP_STDERR"
+        exit 1
+    fi
+    
+    # Compare outputs
+    if ! compare_outputs "$OUTPUT" "$expected_output" "elif test with VAR=$var_value ($test_name)"; then
+        cleanup_temp_files "$TEMP_STDOUT" "$TEMP_STDERR"
+        exit 1
+    fi
+    
+    # Cleanup
+    cleanup_temp_files "$TEMP_STDOUT" "$TEMP_STDERR"
+}
 
 # Test elif chain
 echo "Test: elif chain"
-TEST_TEMPLATE="${TEST_DIR}/fixtures/test_elif.tpl"
-cat > "$TEST_TEMPLATE" << 'EOF'
-{{#if VAR == 1}}
-Value is 1
-{{#elif VAR == 2}}
-Value is 2
-{{#elif VAR == 3}}
-Value is 3
-{{else}}
-Value is something else: {{VAR}}
-{{/if}}
-EOF
 
 # Test VAR=1
-export VAR="1"
-OUTPUT=$(cd "$DAP_TPL_DIR" && gawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>&1)
-EXPECTED="Value is 1"
-
-# Normalize both outputs - remove all newlines and trim
-OUTPUT_NORM=$(printf '%s' "$OUTPUT" | tr -s '[:space:]' ' ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-EXPECTED_NORM=$(printf '%s' "$EXPECTED" | tr -s '[:space:]' ' ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-
-if [ "$OUTPUT_NORM" != "$EXPECTED_NORM" ]; then
-    echo "FAIL: elif test with VAR=1"
-    echo "Expected: $EXPECTED"
-    echo "Got: $OUTPUT"
-    exit 1
-fi
+test_elif_case "1" "Value is 1" "first branch"
 
 # Test VAR=2
-export VAR="2"
-OUTPUT=$(cd "$DAP_TPL_DIR" && gawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>&1)
-EXPECTED="Value is 2"
-
-# Normalize both outputs (remove trailing newlines for comparison)
-OUTPUT_NORM=$(printf '%s' "$OUTPUT" | tr -s '[:space:]' ' ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-EXPECTED_NORM=$(printf '%s' "$EXPECTED" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-
-if [ "$OUTPUT_NORM" != "$EXPECTED_NORM" ]; then
-    echo "FAIL: elif test with VAR=2"
-    echo "Expected: $EXPECTED"
-    echo "Got: $OUTPUT"
-    exit 1
-fi
+test_elif_case "2" "Value is 2" "second branch"
 
 # Test VAR=3
-export VAR="3"
-OUTPUT=$(cd "$DAP_TPL_DIR" && gawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>&1)
-EXPECTED="Value is 3"
-
-# Normalize both outputs (remove trailing newlines for comparison)
-OUTPUT_NORM=$(printf '%s' "$OUTPUT" | tr -s '[:space:]' ' ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-EXPECTED_NORM=$(printf '%s' "$EXPECTED" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-
-if [ "$OUTPUT_NORM" != "$EXPECTED_NORM" ]; then
-    echo "FAIL: elif test with VAR=3"
-    echo "Expected: $EXPECTED"
-    echo "Got: $OUTPUT"
-    exit 1
-fi
+test_elif_case "3" "Value is 3" "third branch"
 
 # Test VAR=5 (else branch)
-export VAR="5"
-OUTPUT=$(cd "$DAP_TPL_DIR" && gawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>&1)
-EXPECTED="Value is something else: 5"
-
-# Normalize both outputs (remove trailing newlines for comparison)
-OUTPUT_NORM=$(printf '%s' "$OUTPUT" | tr -s '[:space:]' ' ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-EXPECTED_NORM=$(printf '%s' "$EXPECTED" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-
-if [ "$OUTPUT_NORM" != "$EXPECTED_NORM" ]; then
-    echo "FAIL: elif test with VAR=5 (else branch)"
-    echo "Expected: $EXPECTED"
-    echo "Got: $OUTPUT"
-    exit 1
-fi
+test_elif_case "5" "Value is something else: 5" "else branch"
 
 echo "PASS: elif chain tests"
 

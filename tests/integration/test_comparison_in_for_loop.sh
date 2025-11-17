@@ -38,7 +38,7 @@ cat > "$TEST_TEMPLATE" << 'EOF'
 EOF
 
 export RETURN_TYPES="void int"
-OUTPUT=$(cd "$DAP_TPL_DIR" && gawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>&1)
+OUTPUT=$(cd "$DAP_TPL_DIR" && gawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>/dev/null)
 
 # Check that void goes to VOID branch
 if ! echo "$OUTPUT" | grep -q "VOID BRANCH: void"; then
@@ -78,25 +78,27 @@ echo "PASS: Comparison condition in for loop"
 # Test 2: Multiple types with void check
 echo "Test 2: Multiple types with void check"
 export RETURN_TYPES="void int char"
-OUTPUT2=$(cd "$DAP_TPL_DIR" && gawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>&1)
+OUTPUT2=$(cd "$DAP_TPL_DIR" && gawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>/dev/null)
 
 # Count VOID branches - should be exactly 1 (for void)
 # Count only lines containing "VOID BRANCH:" followed by a type name
-VOID_COUNT=$(echo "$OUTPUT2" | grep -cE "^[[:space:]]*VOID BRANCH: (void|int|char)" || echo "0")
+VOID_COUNT=$(echo "$OUTPUT2" | grep -E "^[[:space:]]*VOID BRANCH: (void|int|char)" 2>/dev/null | wc -l)
+VOID_COUNT=$((VOID_COUNT + 0))
 if [ "$VOID_COUNT" != "1" ]; then
     echo "FAIL: Expected exactly 1 VOID branch, got $VOID_COUNT"
     echo "Output:"
-    echo "$OUTPUT2" | cat -A
+    echo "$OUTPUT2" | head -20
     exit 1
 fi
 
 # Count NON-VOID branches - should be exactly 2 (for int and char)
 # Count only lines containing "NON-VOID BRANCH:" followed by a type name
-NON_VOID_COUNT=$(echo "$OUTPUT2" | grep -cE "^[[:space:]]*NON-VOID BRANCH: (void|int|char)" || echo "0")
+NON_VOID_COUNT=$(echo "$OUTPUT2" | grep -E "^[[:space:]]*NON-VOID BRANCH: (void|int|char)" 2>/dev/null | wc -l)
+NON_VOID_COUNT=$((NON_VOID_COUNT + 0))
 if [ "$NON_VOID_COUNT" != "2" ]; then
     echo "FAIL: Expected exactly 2 NON-VOID branches, got $NON_VOID_COUNT"
     echo "Output:"
-    echo "$OUTPUT2" | cat -A
+    echo "$OUTPUT2" | head -20
     exit 1
 fi
 
@@ -122,37 +124,37 @@ cat > "$TEST_TEMPLATE3" << 'EOF'
 EOF
 
 export RETURN_TYPES="void int"
-OUTPUT3=$(cd "$DAP_TPL_DIR" && gawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE3" 2>&1)
+OUTPUT3=$(cd "$DAP_TPL_DIR" && gawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE3" 2>/dev/null)
 
-# Check that void macro calls VOID version
-if ! echo "$OUTPUT3" | grep -q "_DAP_MOCK_WRAPPER_CUSTOM_SELECT_void.*_DAP_MOCK_WRAPPER_CUSTOM_VOID"; then
+# Check that void macro calls VOID version (macros can span multiple lines with \)
+if ! echo "$OUTPUT3" | grep -A2 "_DAP_MOCK_WRAPPER_CUSTOM_SELECT_void" | grep -q "_DAP_MOCK_WRAPPER_CUSTOM_VOID"; then
     echo "FAIL: void macro should call VOID version"
     echo "Output:"
-    echo "$OUTPUT3" | cat -A
+    echo "$OUTPUT3" | head -30
     exit 1
 fi
 
-# Check that int macro calls NONVOID version
-if ! echo "$OUTPUT3" | grep -q "_DAP_MOCK_WRAPPER_CUSTOM_SELECT_int.*_DAP_MOCK_WRAPPER_CUSTOM_NONVOID"; then
+# Check that int macro calls NONVOID version (macros can span multiple lines with \)
+if ! echo "$OUTPUT3" | grep -A2 "_DAP_MOCK_WRAPPER_CUSTOM_SELECT_int" | grep -q "_DAP_MOCK_WRAPPER_CUSTOM_NONVOID"; then
     echo "FAIL: int macro should call NONVOID version"
     echo "Output:"
-    echo "$OUTPUT3" | cat -A
+    echo "$OUTPUT3" | head -30
     exit 1
 fi
 
 # Check that void macro does NOT call NONVOID version
-if echo "$OUTPUT3" | grep -q "_DAP_MOCK_WRAPPER_CUSTOM_SELECT_void.*_DAP_MOCK_WRAPPER_CUSTOM_NONVOID"; then
+if echo "$OUTPUT3" | grep -A2 "_DAP_MOCK_WRAPPER_CUSTOM_SELECT_void" | grep -q "_DAP_MOCK_WRAPPER_CUSTOM_NONVOID"; then
     echo "FAIL: void macro should NOT call NONVOID version"
     echo "Output:"
-    echo "$OUTPUT3" | cat -A
+    echo "$OUTPUT3" | head -30
     exit 1
 fi
 
 # Check that int macro does NOT call VOID version
-if echo "$OUTPUT3" | grep -q "_DAP_MOCK_WRAPPER_CUSTOM_SELECT_int.*_DAP_MOCK_WRAPPER_CUSTOM_VOID"; then
+if echo "$OUTPUT3" | grep -A2 "_DAP_MOCK_WRAPPER_CUSTOM_SELECT_int" | grep -q "_DAP_MOCK_WRAPPER_CUSTOM_VOID"; then
     echo "FAIL: int macro should NOT call VOID version"
     echo "Output:"
-    echo "$OUTPUT3" | cat -A
+    echo "$OUTPUT3" | head -30
     exit 1
 fi
 

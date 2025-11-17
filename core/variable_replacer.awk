@@ -3,6 +3,7 @@
 
 @include "core/marker_parser.awk"
 @include "core/variable_functions.awk"
+@include "core/variable_context.awk"
 @include "core/safety_checks.awk"
 
 # Main function to replace variables in output line
@@ -55,13 +56,14 @@ function replace_variables(output_line,    replacement_iterations, max_replaceme
         func_name = get_func_name(parsed_expr)
         func_arg = get_func_arg(parsed_expr)
         
-        # Get base value from vars array first, then ENVIRON
-        # vars array contains variables set by {{#set}} and for loops
-        base_value = ""
-        if (var_name in vars) {
-            base_value = vars[var_name]
-        } else if (var_name in ENVIRON) {
-            base_value = ENVIRON[var_name]
+        # Get base value from variable context (searches context stack and ENVIRON)
+        # This ensures variables from for loops and set constructs are accessible
+        base_value = get_var(var_name)
+        
+        # Ensure variable is in ENVIRON/vars for variable_functions.awk compatibility
+        # (variable_functions.awk uses ENVIRON and vars arrays directly)
+        if (base_value != "" && !(var_name in ENVIRON)) {
+            ENVIRON[var_name] = base_value
         }
         
         # Process function if present

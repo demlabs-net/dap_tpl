@@ -13,3 +13,4 @@ Value is false: {{ARG1}}
 {{/macro}}
 
 {{#call CONDITIONAL|1|test}}
+

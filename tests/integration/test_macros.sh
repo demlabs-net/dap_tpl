@@ -4,34 +4,15 @@
 set -e
 
 TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DAP_TPL_DIR="$(cd "$TEST_DIR/../.." && pwd)"
-TEMPLATES_DIR="${TEST_DIR}/fixtures"
 
-export SCRIPTS_DIR="${DAP_TPL_DIR}"
-export TEMPLATES_DIR
-export AWKPATH="${DAP_TPL_DIR}"
+# Load common test fixtures
+source "${TEST_DIR}/fixtures/test_common.sh"
 
-# Create test template
-TEST_TEMPLATE="${TEST_DIR}/fixtures/test_macro.tpl"
-mkdir -p "${TEST_DIR}/fixtures"
+# Initialize test environment
+init_test_env "$TEST_DIR"
 
-cat > "$TEST_TEMPLATE" << 'EOF'
-{{#macro GREETING}}
-Hello, {{ARG0}}! Welcome to {{ARG1}}.
-{{/macro}}
-
-{{#call GREETING|World|DAP TPL}}
-
-{{#macro CONDITIONAL}}
-{{#if ARG0}}
-Value is true: {{ARG1}}
-{{else}}
-Value is false: {{ARG1}}
-{{/if}}
-{{/macro}}
-
-{{#call CONDITIONAL|1|test}}
-EOF
+# Test template
+TEST_TEMPLATE="${FIXTURES_DIR}/test_macro.tpl"
 
 # Expected output
 EXPECTED="Hello, World! Welcome to DAP TPL.
@@ -39,30 +20,34 @@ EXPECTED="Hello, World! Welcome to DAP TPL.
 Value is true: test
 "
 
-# Build engine and capture path
-ENGINE_OUTPUT=$("${DAP_TPL_DIR}/utils/build_engine.sh" 2>&1)
-COMPILED_ENGINE=$(echo "$ENGINE_OUTPUT" | grep "^ENGINE_PATH=" | cut -d'=' -f2-)
-if [ -z "$COMPILED_ENGINE" ] || [ ! -f "$COMPILED_ENGINE" ]; then
-    echo "ERROR: Failed to build engine or find engine file"
-    echo "$ENGINE_OUTPUT"
+# Run template
+TEMP_STDOUT=""
+TEMP_STDERR=""
+OUTPUT=""
+STDERR_OUTPUT=""
+
+if ! run_template "$TEST_TEMPLATE" TEMP_STDOUT TEMP_STDERR OUTPUT STDERR_OUTPUT; then
+    echo "FAIL: Template processing failed"
+    cat "$TEMP_STDOUT"
+    cat "$TEMP_STDERR" >&2
+    cleanup_temp_files "$TEMP_STDOUT" "$TEMP_STDERR"
     exit 1
 fi
 
-OUTPUT=$(cd "$DAP_TPL_DIR" && gawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>&1)
-
-# Normalize both outputs (remove trailing/leading newlines for comparison)
-OUTPUT_NORM=$(printf '%s' "$OUTPUT" | tr -s '[:space:]' ' ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-EXPECTED_NORM=$(printf '%s' "$EXPECTED" | tr -s '[:space:]' ' ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-
-if [ "$OUTPUT_NORM" != "$EXPECTED_NORM" ]; then
-    echo "FAIL: Output mismatch"
-    echo "Expected:"
-    echo "$EXPECTED" | cat -A
-    echo "Got:"
-    echo "$OUTPUT" | cat -A
+# Check stderr is empty (no errors)
+if ! check_stderr_empty "$STDERR_OUTPUT"; then
+    cleanup_temp_files "$TEMP_STDOUT" "$TEMP_STDERR"
     exit 1
 fi
+
+# Compare outputs
+if ! compare_outputs "$OUTPUT" "$EXPECTED" "macro system"; then
+    cleanup_temp_files "$TEMP_STDOUT" "$TEMP_STDERR"
+    exit 1
+fi
+
+# Cleanup
+cleanup_temp_files "$TEMP_STDOUT" "$TEMP_STDERR"
 
 echo "PASS"
-rm -f "$TEST_TEMPLATE"
 

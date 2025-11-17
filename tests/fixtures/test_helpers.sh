@@ -51,21 +51,48 @@ run_awk_test() {
     
     echo -n "${indent}${test_name}: "
     
-    local result
-    if result=$(cd "$DAP_TPL_DIR" && gawk -f "$test_file" <<< "" 2>&1); then
-        if echo "$result" | grep -q "^PASS$"; then
-            echo "PASS"
-            ((passed++)) || true
-            return 0
+    # Run test with DEBUG_ENABLED=0 to suppress debug output
+    # Capture both stdout and stderr separately
+    local temp_stdout="/tmp/test_awk_stdout_$$_${RANDOM}.txt"
+    local temp_stderr="/tmp/test_awk_stderr_$$_${RANDOM}.txt"
+    local exit_code=0
+    local result=""
+    
+    (cd "$DAP_TPL_DIR" && DEBUG_ENABLED=0 gawk -f "$test_file" <<< "" > "$temp_stdout" 2>"$temp_stderr") || exit_code=$?
+    
+    local stdout_output=""
+    local stderr_output=""
+    if [ -f "$temp_stdout" ]; then
+        stdout_output=$(cat "$temp_stdout")
+    fi
+    if [ -f "$temp_stderr" ]; then
+        stderr_output=$(cat "$temp_stderr")
+    fi
+    rm -f "$temp_stdout" "$temp_stderr"
+    
+    # Combine stdout and stderr for result checking
+    result="${stdout_output}"
+    if [ -n "$stderr_output" ]; then
+        # If stderr is not empty, it's an error (should not happen with DEBUG_ENABLED=0)
+        if [ -z "$result" ]; then
+            result="Error: $stderr_output"
         else
-            echo "FAIL"
-            echo "${indent}    Output: $result"
-            ((failed++)) || true
-            return 1
+            result="${result}\nError: $stderr_output"
         fi
+    fi
+    
+    if [ $exit_code -eq 0 ] && echo "$result" | grep -q "^PASS$"; then
+        echo "PASS"
+        ((passed++)) || true
+        return 0
     else
         echo "FAIL"
-        echo "${indent}    Error: $result"
+        if [ -n "$result" ]; then
+            echo "${indent}    Output: $result"
+        fi
+        if [ $exit_code -ne 0 ]; then
+            echo "${indent}    Exit code: $exit_code"
+        fi
         ((failed++)) || true
         return 1
     fi

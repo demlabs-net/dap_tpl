@@ -137,12 +137,12 @@ function parse_branches_generic(content, token_id, construct_type, start_line,  
     if (construct_type == "if") {
         condition = get_token_metadata(token_id, "condition")
         if (condition ~ /type.*==.*void/) {
-            printf "DEBUG parse_branches_generic: START, token_id=%d construct_type=%s content_length=%d content=[%s]\n", token_id, construct_type, length(content), substr(content, 1, 150) > "/dev/stderr"
+            log_debug("parse_branches_generic: START, token_id=%d construct_type=%s content_length=%d content=[%s]\n", token_id, construct_type, length(content), substr(content, 1, 150))
         }
     }
     # Debug output for set constructs
     if (construct_type == "set") {
-        printf "DEBUG parse_branches_generic: START for set, token_id=%d construct_type=%s content_length=%d content=[%s]\n", token_id, construct_type, length(content), substr(content, 1, 200) > "/dev/stderr"
+        log_debug("parse_branches_generic: START for set, token_id=%d construct_type=%s content_length=%d content=[%s]\n", token_id, construct_type, length(content), substr(content, 1, 200))
     }
     
     delete positions
@@ -152,21 +152,11 @@ function parse_branches_generic(content, token_id, construct_type, start_line,  
     if (construct_type == "if") {
         condition = get_token_metadata(token_id, "condition")
         if (condition ~ /macro_name/) {
-            printf "DEBUG parse_branches_generic: find_branches_generic returned count=%d\n", count > "/dev/stderr"
-            printf "DEBUG parse_branches_generic: full content length=%d\n", length(content) > "/dev/stderr"
-            printf "DEBUG parse_branches_generic: full content hex: " > "/dev/stderr"
-            for (i = 1; i <= 250 && i <= length(content); i++) {
-                c = substr(content, i, 1)
-                if (c == "\n") printf "\\n" > "/dev/stderr"
-                else if (c == "\r") printf "\\r" > "/dev/stderr"
-                else if (c == "\t") printf "\\t" > "/dev/stderr"
-                else printf "%s", c > "/dev/stderr"
-            }
-            printf "\n" > "/dev/stderr"
-            if (count > 0) {
-                printf "DEBUG parse_branches_generic: first branch position=%d type=[%s]\n", positions[1, "pos"], positions[1, "type"] > "/dev/stderr"
-                printf "DEBUG parse_branches_generic: content before first branch hex: " > "/dev/stderr"
-                for (i = 1; i <= positions[1, "pos"] - 1 && i <= 250; i++) {
+            log_debug("parse_branches_generic: find_branches_generic returned count=%d\n", count)
+            log_debug("parse_branches_generic: full content length=%d\n", length(content))
+            if (DEBUG_ENABLED) {
+                log_debug("parse_branches_generic: full content hex: ")
+                for (i = 1; i <= 250 && i <= length(content); i++) {
                     c = substr(content, i, 1)
                     if (c == "\n") printf "\\n" > "/dev/stderr"
                     else if (c == "\r") printf "\\r" > "/dev/stderr"
@@ -175,15 +165,29 @@ function parse_branches_generic(content, token_id, construct_type, start_line,  
                 }
                 printf "\n" > "/dev/stderr"
             }
+            if (count > 0) {
+                log_debug("parse_branches_generic: first branch position=%d type=[%s]\n", positions[1, "pos"], positions[1, "type"])
+                if (DEBUG_ENABLED) {
+                    log_debug("parse_branches_generic: content before first branch hex: ")
+                    for (i = 1; i <= positions[1, "pos"] - 1 && i <= 250; i++) {
+                        c = substr(content, i, 1)
+                        if (c == "\n") printf "\\n" > "/dev/stderr"
+                        else if (c == "\r") printf "\\r" > "/dev/stderr"
+                        else if (c == "\t") printf "\\t" > "/dev/stderr"
+                        else printf "%s", c > "/dev/stderr"
+                    }
+                    printf "\n" > "/dev/stderr"
+                }
+            }
         }
     }
     
     # Debug output - ALWAYS print for if constructs
     if (construct_type == "if") {
-        printf "DEBUG parse_branches_generic: token_id=%d construct_type=%s count=%d content_length=%d\n", token_id, construct_type, count, length(content) > "/dev/stderr"
+        log_debug("parse_branches_generic: token_id=%d construct_type=%s count=%d content_length=%d\n", token_id, construct_type, count, length(content))
         condition = get_token_metadata(token_id, "condition")
         if (condition ~ /type.*==.*void/) {
-            printf "DEBUG parse_branches_generic: nested if detected, count=%d content=[%s]\n", count, substr(content, 1, 150) > "/dev/stderr"
+            log_debug("parse_branches_generic: nested if detected, count=%d content=[%s]\n", count, substr(content, 1, 150))
             log_debug("parse_branches_generic: token_id=%d construct_type=%s count=%d content_length=%d", token_id, construct_type, count, length(content))
         }
     }
@@ -191,16 +195,16 @@ function parse_branches_generic(content, token_id, construct_type, start_line,  
     if (count == 0) {
         # No branches - parse normally
         if (construct_type == "if") {
-            printf "DEBUG parse_branches_generic: NO BRANCHES, parsing normally\n" > "/dev/stderr"
+            log_debug("parse_branches_generic: NO BRANCHES, parsing normally\n")
             if (content ~ /type.*==.*void/) {
-                printf "DEBUG parse_branches_generic: nested if NO BRANCHES, content=[%s]\n", substr(content, 1, 100) > "/dev/stderr"
+                log_debug("parse_branches_generic: nested if NO BRANCHES, content=[%s]\n", substr(content, 1, 100))
             }
         }
         parse_content(content, token_id, start_line)
         
         # Debug output
         if (construct_type == "if") {
-            printf "DEBUG parse_branches_generic: after parse_content, token_id=%d children=%d\n", token_id, get_children_count(token_id) > "/dev/stderr"
+            log_debug("parse_branches_generic: after parse_content, token_id=%d children=%d\n", token_id, get_children_count(token_id))
         }
         if (construct_type == "if" && content ~ /type.*==.*void/) {
             log_debug("after parse_content, token_id=%d children=%d", token_id, get_children_count(token_id))
@@ -216,24 +220,26 @@ function parse_branches_generic(content, token_id, construct_type, start_line,  
     
     # Debug output - ALWAYS print for if constructs
     if (construct_type == "if") {
-        printf "DEBUG parse_branches_generic: parsing main branch, content=[%s]\n", branch_content > "/dev/stderr"
+        log_debug("parse_branches_generic: parsing main branch, content=[%s]\n", branch_content)
         # Check if this is nested if with type == 'void'
         if (content ~ /type.*==.*void/) {
-            printf "DEBUG parse_branches_generic: nested if detected, branch_content length=%d\n", length(branch_content) > "/dev/stderr"
+            log_debug("parse_branches_generic: nested if detected, branch_content length=%d\n", length(branch_content))
         }
         # Check if this is outer if with macro_name condition
         condition = get_token_metadata(token_id, "condition")
         if (condition ~ /macro_name/) {
-            printf "DEBUG parse_branches_generic: outer if, branch_content length=%d branch_content=[%s]\n", length(branch_content), substr(branch_content, 1, 150) > "/dev/stderr"
-            printf "DEBUG parse_branches_generic: outer if, branch_content hex: " > "/dev/stderr"
-            for (i = 1; i <= 200 && i <= length(branch_content); i++) {
-                c = substr(branch_content, i, 1)
-                if (c == "\n") printf "\\n" > "/dev/stderr"
-                else if (c == "\r") printf "\\r" > "/dev/stderr"
-                else if (c == "\t") printf "\\t" > "/dev/stderr"
-                else printf "%s", c > "/dev/stderr"
+            log_debug("parse_branches_generic: outer if, branch_content length=%d branch_content=[%s]\n", length(branch_content), substr(branch_content, 1, 150))
+            if (DEBUG_ENABLED) {
+                log_debug("parse_branches_generic: outer if, branch_content hex: ")
+                for (i = 1; i <= 200 && i <= length(branch_content); i++) {
+                    c = substr(branch_content, i, 1)
+                    if (c == "\n") printf "\\n" > "/dev/stderr"
+                    else if (c == "\r") printf "\\r" > "/dev/stderr"
+                    else if (c == "\t") printf "\\t" > "/dev/stderr"
+                    else printf "%s", c > "/dev/stderr"
+                }
+                printf "\n" > "/dev/stderr"
             }
-            printf "\n" > "/dev/stderr"
         }
     }
     if (construct_type == "if" && content ~ /type.*==.*void/) {
@@ -244,7 +250,7 @@ function parse_branches_generic(content, token_id, construct_type, start_line,  
     
     # Debug output
     if (construct_type == "if") {
-        printf "DEBUG parse_branches_generic: after main branch, token_id=%d children=%d\n", token_id, get_children_count(token_id) > "/dev/stderr"
+        log_debug("parse_branches_generic: after main branch, token_id=%d children=%d\n", token_id, get_children_count(token_id))
         # Check nested if tokens
         if (content ~ /type.*==.*void/) {
             child_count = get_children_count(token_id)
@@ -254,7 +260,7 @@ function parse_branches_generic(content, token_id, construct_type, start_line,  
                 if (child_type == "if") {
                     child_condition = get_token_metadata(child_id, "condition")
                     child_children = get_children_count(child_id)
-                    printf "DEBUG parse_branches_generic: nested if child[%d]=%d type=%s children=%d condition=[%s]\n", j, child_id, child_type, child_children, child_condition > "/dev/stderr"
+                    log_debug("parse_branches_generic: nested if child[%d]=%d type=%s children=%d condition=[%s]\n", j, child_id, child_type, child_children, child_condition)
                 }
             }
         }
@@ -292,7 +298,7 @@ function parse_branches_generic(content, token_id, construct_type, start_line,  
         
         # Debug output - ALWAYS print for if constructs
         if (construct_type == "if") {
-            printf "DEBUG parse_branches_generic: added branch %s (id=%d), branch_children=%d total_children=%d\n", positions[i, "type"], branch_token_id, get_children_count(branch_token_id), get_children_count(token_id) > "/dev/stderr"
+            log_debug("parse_branches_generic: added branch %s (id=%d), branch_children=%d total_children=%d\n", positions[i, "type"], branch_token_id, get_children_count(branch_token_id), get_children_count(token_id))
         }
         if (construct_type == "if" && content ~ /type.*==.*void/) {
             log_debug("added branch %s, branch_children=%d total_children=%d", positions[i, "type"], get_children_count(branch_token_id), get_children_count(token_id))
@@ -304,17 +310,17 @@ function parse_branches_generic(content, token_id, construct_type, start_line,  
     
     # Debug output
     if (construct_type == "if") {
-        printf "DEBUG parse_branches_generic: final token_id=%d children=%d\n", token_id, get_children_count(token_id) > "/dev/stderr"
+        log_debug("parse_branches_generic: final token_id=%d children=%d\n", token_id, get_children_count(token_id))
         condition = get_token_metadata(token_id, "condition")
         if (condition ~ /type.*==.*void/) {
-            printf "DEBUG parse_branches_generic: nested if final, token_id=%d children=%d condition=[%s]\n", token_id, get_children_count(token_id), condition > "/dev/stderr"
+            log_debug("parse_branches_generic: nested if final, token_id=%d children=%d condition=[%s]\n", token_id, get_children_count(token_id), condition)
             # List all children
             child_count = get_children_count(token_id)
             for (j = 1; j <= child_count; j++) {
                 child_id = get_child(token_id, j)
                 child_type = get_token_type(child_id)
                 child_children = get_children_count(child_id)
-                printf "DEBUG parse_branches_generic: nested if child[%d]=%d type=%s children=%d\n", j, child_id, child_type, child_children > "/dev/stderr"
+                log_debug("parse_branches_generic: nested if child[%d]=%d type=%s children=%d\n", j, child_id, child_type, child_children)
             }
         }
     }

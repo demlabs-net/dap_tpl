@@ -123,15 +123,46 @@ function evaluate_set_value(value_expr,    result, marker_info, marker_text, var
 function evaluate_set(token_id,    condition, var_name, var_value, child_count, i, child_id, result_token_id, metadata, evaluated_value, parts) {
     condition = get_token_metadata(token_id, "condition")
     if (condition == "") {
+        # Debug output disabled by default - use DEBUG_ENABLED to enable
+        # if (DEBUG_ENABLED) {
+        #     log_debug("evaluate_set: token_id=%d condition is empty, returning token_id", token_id)
+        # }
         return token_id
     }
     
-    if (match(condition, /^([^=]+)=(.+)$/)) {
-        split(condition, parts, "=")
-        var_name = parts[1]
+    # Parse VAR=value pattern
+    # Find first = that is not inside {{}}
+    eq_pos = index(condition, "=")
+    if (eq_pos > 0) {
+        # Check if = is inside {{}} markers
+        # Count {{ before = and }} after =
+        before_eq = substr(condition, 1, eq_pos - 1)
+        after_eq = substr(condition, eq_pos + 1)
+        
+        # Simple check: if before_eq contains {{ and after_eq contains }}, 
+        # then = might be inside markers - but we'll use first = anyway
+        # More robust: find first = that is not inside balanced {{ }}
+        var_name = substr(condition, 1, eq_pos - 1)
         gsub(/^[ \t]+|[ \t]+$/, "", var_name)
-        var_value = substr(condition, index(condition, "=") + 1)
+        var_value = substr(condition, eq_pos + 1)
         gsub(/^[ \t]+|[ \t]+$/, "", var_value)
+        
+        # If var_name is empty or var_value is empty, try match() as fallback
+        if (var_name == "" || var_value == "") {
+            if (match(condition, /^([^=]+)=(.+)$/)) {
+                split(condition, parts, "=")
+                var_name = parts[1]
+                gsub(/^[ \t]+|[ \t]+$/, "", var_name)
+                var_value = substr(condition, index(condition, "=") + 1)
+                gsub(/^[ \t]+|[ \t]+$/, "", var_value)
+            } else {
+                # No match - return original token
+                if (DEBUG_ENABLED) {
+                    printf "DEBUG evaluate_set: token_id=%d condition=[%s] doesn't match VAR=value pattern, returning token_id\n", token_id, condition > "/dev/stderr"
+                }
+                return token_id
+            }
+        }
         
         evaluated_value = evaluate_set_value(var_value)
         log_debug("evaluate_set: var_name=[%s] evaluated_value=[%s] before set_var", var_name, evaluated_value)
@@ -143,6 +174,10 @@ function evaluate_set(token_id,    condition, var_name, var_value, child_count, 
             vars[var_name] = evaluated_value
         }
     } else {
+        # Debug output
+        if (DEBUG_ENABLED) {
+            printf "DEBUG evaluate_set: token_id=%d condition=[%s] doesn't match VAR=value pattern, returning token_id\n", token_id, condition > "/dev/stderr"
+        }
         return token_id
     }
     
@@ -153,51 +188,14 @@ function evaluate_set(token_id,    condition, var_name, var_value, child_count, 
     
     child_count = get_children_count(token_id)
     
-    # Debug output for nested if tokens
-    if (var_name == "macro_name") {
-        printf "DEBUG evaluate_set: token_id=%d child_count=%d\n", token_id, child_count > "/dev/stderr"
-        for (i = 1; i <= child_count; i++) {
-            child_id = get_child(token_id, i)
-            child_type = get_token_type(child_id)
-            child_children = get_children_count(child_id)
-            condition = get_token_metadata(child_id, "condition")
-            printf "DEBUG evaluate_set: token_id=%d child[%d]=%d type=%s children=%d condition=[%s]\n", token_id, i, child_id, child_type, child_children, condition > "/dev/stderr"
-            # Check nested children
-            if (child_type == "if" && child_children > 0) {
-                for (j = 1; j <= child_children; j++) {
-                    grandchild_id = get_child(child_id, j)
-                    grandchild_type = get_token_type(grandchild_id)
-                    grandchild_condition = get_token_metadata(grandchild_id, "condition")
-                    grandchild_children = get_children_count(grandchild_id)
-                    printf "DEBUG evaluate_set:   grandchild[%d]=%d type=%s children=%d condition=[%s]\n", j, grandchild_id, grandchild_type, grandchild_children, grandchild_condition > "/dev/stderr"
-                }
-            }
-        }
-    }
+    # Debug output disabled by default - use DEBUG_ENABLED to enable
+    # if (DEBUG_ENABLED) {
+    #     log_debug("evaluate_set: token_id=%d condition=[%s] var_name=[%s] child_count=%d result_token_id=%d type=%s", token_id, condition, var_name, child_count, result_token_id, get_token_type(result_token_id))
+    # }
     
     for (i = 1; i <= child_count; i++) {
         child_id = get_child(token_id, i)
-        child_type = get_token_type(child_id)
-        # Debug output for if tokens
-        if (child_type == "if") {
-            condition = get_token_metadata(child_id, "condition")
-            if (condition ~ /type.*==.*void/) {
-                printf "DEBUG evaluate_set: BEFORE add_child, child_id=%d type=%s children=%d condition=[%s]\n", child_id, child_type, get_children_count(child_id), condition > "/dev/stderr"
-            }
-        }
         add_child(result_token_id, child_id)
-        # Debug output for if tokens
-        if (child_type == "if") {
-            condition = get_token_metadata(child_id, "condition")
-            if (condition ~ /type.*==.*void/) {
-                printf "DEBUG evaluate_set: AFTER add_child, child_id=%d type=%s children=%d\n", child_id, child_type, get_children_count(child_id) > "/dev/stderr"
-            }
-        }
-    }
-    
-    # Debug output
-    if (var_name == "macro_name") {
-        printf "DEBUG evaluate_set: AFTER add_child, result_token_id=%d children=%d\n", result_token_id, get_children_count(result_token_id) > "/dev/stderr"
     }
     
     return result_token_id
