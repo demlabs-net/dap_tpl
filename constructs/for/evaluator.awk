@@ -48,8 +48,8 @@ function evaluate_for(token_id,    condition, loop_vars, loop_var_count, array_n
                 gsub(/^[ \t]+|[ \t]+$/, "", potential_array_name)
                 gsub(/^[ \t]+|[ \t]+$/, "", potential_separator)
                 
-                # Check if separator is a keyword (space, pipe, newline) or if variable exists
-                is_separator_keyword = (potential_separator == "space" || potential_separator == "pipe" || potential_separator == "newline" || potential_separator == " " || potential_separator == "")
+                # Check if separator is a keyword (space, pipe, newline, newline_double) or if variable exists
+                is_separator_keyword = (potential_separator == "space" || potential_separator == "pipe" || potential_separator == "newline" || potential_separator == "newline_double" || potential_separator == " " || potential_separator == "")
                 test_value = get_var(potential_array_name)
                 
                 if (test_value != "" || is_separator_keyword) {
@@ -63,6 +63,8 @@ function evaluate_for(token_id,    condition, loop_vars, loop_var_count, array_n
                         separator = "|"
                     } else if (separator == "newline") {
                         separator = "\n"
+                    } else if (separator == "newline_double") {
+                        separator = "\n\n"
                     }
                 }
                 # If variable not found and separator is not a keyword, array_name stays as literal (a|b|c)
@@ -133,6 +135,9 @@ function evaluate_for(token_id,    condition, loop_vars, loop_var_count, array_n
         } else if (separator == "" || separator == "newline") {
             # Empty separator or newline keyword
             item_count = split(array_value, items, /\n/)
+        } else if (separator == "newline_double" || separator == "\n\n") {
+            # Double newline separator - for multiline entries
+            item_count = split(array_value, items, /\n\n/)
         } else {
             # Custom separator - escape special regex chars
             escaped_sep = separator

@@ -166,8 +166,10 @@ prepare_map_macros_data() {
             macro_def="${macro_def}"$'\n'
         fi
         
+        # Use double-newline as separator between entries to avoid auto-detection issues
+        # Single newlines are inside macro definitions, double newlines separate entries
         if [ -n "$MAP_MACROS_DATA" ]; then
-            MAP_MACROS_DATA="${MAP_MACROS_DATA}"$'\n'"${count}|${macro_def}"
+            MAP_MACROS_DATA="${MAP_MACROS_DATA}"$'\n\n'"${count}|${macro_def}"
         else
             MAP_MACROS_DATA="${count}|${macro_def}"
         fi
@@ -177,7 +179,7 @@ prepare_map_macros_data() {
     if [ "$has_count_1" -eq 0 ]; then
         map_1_def="// Macro for 1 parameter(s) - needed for _DAP_MOCK_MAP_IMPL_COND_1_0"$'\n'"#define _DAP_MOCK_MAP_1(macro, p1, p2, ...) \\"$'\n'"    macro(p1, p2)"$'\n'
         if [ -n "$MAP_MACROS_DATA" ]; then
-            MAP_MACROS_DATA="${MAP_MACROS_DATA}"$'\n'"1|${map_1_def}"
+            MAP_MACROS_DATA="${MAP_MACROS_DATA}"$'\n\n'"1|${map_1_def}"
         else
             MAP_MACROS_DATA="1|${map_1_def}"
         fi
