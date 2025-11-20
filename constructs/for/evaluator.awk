@@ -55,16 +55,19 @@ function evaluate_for(token_id,    condition, loop_vars, loop_var_count, array_n
                 if (test_value != "" || is_separator_keyword) {
                     # Variable exists or separator is a keyword - use as variable with separator
                     array_name = potential_array_name
-                    separator = potential_separator
-                    # Handle special separator keywords
-                    if (separator == "space" || separator == " ") {
+                    # Store original separator keyword for later use
+                    separator_keyword = potential_separator
+                    # Handle special separator keywords - convert to actual separator value
+                    if (separator_keyword == "space" || separator_keyword == " ") {
                         separator = " "
-                    } else if (separator == "pipe") {
+                    } else if (separator_keyword == "pipe") {
                         separator = "|"
-                    } else if (separator == "newline") {
+                    } else if (separator_keyword == "newline") {
                         separator = "\n"
-                    } else if (separator == "newline_double") {
+                    } else if (separator_keyword == "newline_double") {
                         separator = "\n\n"
+                    } else {
+                        separator = separator_keyword
                     }
                 }
                 # If variable not found and separator is not a keyword, array_name stays as literal (a|b|c)
@@ -122,28 +125,27 @@ function evaluate_for(token_id,    condition, loop_vars, loop_var_count, array_n
     
     # Split array into items based on separator
     # Support both newline-separated (for file-based data) and custom separator
-    if (separator == "|" && array_value ~ /\n/) {
-        # Newline-separated array (file-based data) - use newline
+    # Check separator value (can be "\n", "\n\n", " ", "|", or custom string)
+    if (separator == "\n") {
+        # Single newline separator
+        item_count = split(array_value, items, /\n/)
+    } else if (separator == "\n\n") {
+        # Double newline separator - for multiline entries
+        item_count = split(array_value, items, /\n\n/)
+    } else if (separator == "|") {
+        # Pipe separator
+        item_count = split(array_value, items, /\|/)
+    } else if (separator == " " || separator == "space") {
+        # Space separator - use regex to split by one or more spaces
+        item_count = split(array_value, items, /[ \t]+/)
+    } else if (separator == "" || separator == "newline") {
+        # Empty separator or newline keyword (fallback)
         item_count = split(array_value, items, /\n/)
     } else {
-        # Use specified separator (default: pipe)
-        if (separator == "|") {
-            item_count = split(array_value, items, /\|/)
-        } else if (separator == " " || separator == "space") {
-            # Space separator - use regex to split by one or more spaces
-            item_count = split(array_value, items, /[ \t]+/)
-        } else if (separator == "" || separator == "newline") {
-            # Empty separator or newline keyword
-            item_count = split(array_value, items, /\n/)
-        } else if (separator == "newline_double" || separator == "\n\n") {
-            # Double newline separator - for multiline entries
-            item_count = split(array_value, items, /\n\n/)
-        } else {
-            # Custom separator - escape special regex chars
-            escaped_sep = separator
-            gsub(/[.*+?^${}()|[\]\\]/, "\\\\&", escaped_sep)
-            item_count = split(array_value, items, escaped_sep)
-        }
+        # Custom separator - escape special regex chars
+        escaped_sep = separator
+        gsub(/[.*+?^${}()|[\]\\]/, "\\\\&", escaped_sep)
+        item_count = split(array_value, items, escaped_sep)
     }
     
     # Debug output (disabled by default - set DEBUG_FOR=1 to enable)

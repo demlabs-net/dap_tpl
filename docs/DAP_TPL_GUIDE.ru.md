@@ -104,7 +104,7 @@ replace_template_placeholders conditional.tpl output.h "ENABLE_DEBUG=1"
 ```
 {{#set TYPES=int|char*|void*}}
 {{#for type in TYPES}}
-typedef {{type}} my_{{type|normalize_name}}_t;
+typedef {{type}} my_{{type}}_t;
 {{/for}}
 ```
 
@@ -168,28 +168,24 @@ get_data|char*|int id}}
 - `contains|substring` - Проверить наличие подстроки
 - `split|delimiter` - Разделить на части (используйте `pipe` или `newline`)
 - `part|index` - Получить часть по индексу после split
+- `replace|pattern|replacement` - Заменить все вхождения паттерна на замену
 - `remove_suffix|suffix` - Удалить суффикс из строки
 
 **Сравнение:**
 - `ne|value` - Не равно значению
 - `in_list` - Проверить наличие в списке
 
-**Преобразования имён (расширения для мокинга):**
-- `normalize_name` - Преобразовать в валидный C идентификатор (`*` → `_PTR`)
-- `escape_name` - Экранировать специальные символы
-- `escape_char|char|replacement` - Заменить конкретный символ
-- `sanitize_name` - Удалить недопустимые символы
-
 #### Примеры
 ```
 {{NAME}}                          → значение NAME
 {{NAME|trim}}                     → обрезанное значение
-{{TYPE|normalize_name}}           → dap_list_t* → dap_list_t_PTR
 {{LIST|split|pipe}}               → разделить по |
 {{LIST|part|0}}                   → первый элемент
 {{VALUE|ne|0}}                    → проверить что не ноль
 {{TEXT|contains|test}}            → проверить наличие "test"
 ```
+
+**Примечание:** Дополнительные функции переменных могут быть доступны через расширения (например, `normalize_name`, `escape_name`, `sanitize_name` из расширений мокинга).
 
 ### Условия
 
@@ -378,13 +374,15 @@ char*|get_name|const char* id}}
 ```
 {{#set TYPES=int|char*|dap_list_t*}}
 {{#for type in TYPES}}
-{{#set SAFE_NAME={{type|normalize_name}}}}
+{{#set TYPE_NAME={{type|replace|*|_ptr|replace| |_}}}}
 typedef struct {
     {{type}} value;
     int is_valid;
-} safe_{{SAFE_NAME}}_t;
+} safe_{{TYPE_NAME}}_t;
 {{/for}}
 ```
+
+**Примечание:** Для нормализации имён, специфичной для C (например, `normalize_name`), используйте расширения мокинга.
 
 ### Рецепт 5: Условная генерация моков
 
@@ -535,6 +533,8 @@ replace_template_placeholders ШАБЛОН ВЫВОД [--extensions-dir ДИРЕ
 ```bash
 --extensions-dir путь/к/расширениям
 ```
+
+Каждая расширение должно содержать файлы `definition.awk`, `tokenizer.awk` и `evaluator.awk` (при необходимости).
 
 ### Оптимизация производительности
 
@@ -717,13 +717,12 @@ tokenize_simple_construct(marker_text, "include", 8, ...)
 | part | `{{VAR\|part\|N}}` | Получить N-ую часть | `{{LIST\|part|0}}` |
 | trim | `{{VAR\|trim}}` | Убрать пробелы | `{{NAME\|trim}}` |
 | contains | `{{VAR\|contains\|text}}` | Проверить подстроку | `{{TYPE\|contains\|*}}` |
+| replace | `{{VAR\|replace\|pat\|rep}}` | Заменить паттерн | `{{TEXT\|replace\|old\|new}}` |
 | ne | `{{VAR\|ne\|val}}` | Не равно | `{{COUNT\|ne\|0}}` |
 | in_list | `{{VAR\|in_list}}` | Проверка в списке | `{{ITEM\|in_list}}` |
 | remove_suffix | `{{VAR\|remove_suffix\|suf}}` | Удалить суффикс | `{{TYPE\|remove_suffix\|_t}}` |
-| normalize_name | `{{VAR\|normalize_name}}` | C идентификатор | `{{TYPE\|normalize_name}}` |
-| escape_name | `{{VAR\|escape_name}}` | Экранировать | `{{TYPE\|escape_name}}` |
-| escape_char | `{{VAR\|escape_char\|c\|r}}` | Заменить символ | `{{TYPE\|escape_char\|*\|_PTR}}` |
-| sanitize_name | `{{VAR\|sanitize_name}}` | Очистить имя | `{{NAME\|sanitize_name}}` |
+
+**Примечание:** Дополнительные функции (например, `normalize_name`, `escape_name`, `sanitize_name`) могут быть доступны через расширения.
 
 ### Приложение B: Приоритет операторов
 
@@ -741,6 +740,36 @@ tokenize_simple_construct(marker_text, "include", 8, ...)
 | "Compiled engine not found" | Отсутствует DAP_TPL_ENGINE_PATH | Установите переменную окружения |
 | "Template file not found" | Неправильный путь | Проверьте путь к файлу |
 | "Maximum include depth exceeded" | Слишком много вложенных включений | Уменьшите вложенность |
+
+### Приложение D: Тестирование ваших шаблонов
+
+```bash
+# Запустить шаблон с тестовыми данными
+cd dap_tpl
+source dap_tpl.sh
+
+replace_template_placeholders \
+    your_template.tpl \
+    /tmp/output.txt \
+    "VAR1=test1" \
+    "VAR2=test2"
+
+# Проверить вывод
+cat /tmp/output.txt
+
+# Проверить результат
+diff expected_output.txt /tmp/output.txt
+
+# Запустить системные тесты (из dap-sdk/tests/)
+cd ../../tests
+./run.sh test-framework     # Запустить все test-framework тесты
+./run.sh unit               # Запустить только unit тесты
+./run.sh integration        # Запустить только integration тесты
+
+# Или через CTest (из dap-sdk/build/)
+cd ../build
+ctest -L test-framework --output-on-failure
+```
 
 ---
 

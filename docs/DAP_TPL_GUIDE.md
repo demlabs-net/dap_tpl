@@ -104,7 +104,7 @@ Create `loop.tpl`:
 ```
 {{#set TYPES=int|char*|void*}}
 {{#for type in TYPES}}
-typedef {{type}} my_{{type|normalize_name}}_t;
+typedef {{type}} my_{{type}}_t;
 {{/for}}
 ```
 
@@ -168,28 +168,24 @@ See [docs/examples/06_complex.tpl](examples/06_complex.tpl) for a complete real-
 - `contains|substring` - Check if contains substring
 - `split|delimiter` - Split into parts (use `pipe` or `newline`)
 - `part|index` - Get part by index after split
+- `replace|pattern|replacement` - Replace all occurrences of pattern with replacement
 - `remove_suffix|suffix` - Remove suffix from string
 
 **Comparison:**
 - `ne|value` - Not equal to value
 - `in_list` - Check if value is in a list
 
-**Name Transformations (Mocking Extensions):**
-- `normalize_name` - Convert to valid C identifier (`*` → `_PTR`)
-- `escape_name` - Escape special characters
-- `escape_char|char|replacement` - Replace specific character
-- `sanitize_name` - Remove invalid characters
-
 #### Examples
 ```
 {{NAME}}                          → value of NAME
 {{NAME|trim}}                     → trimmed value
-{{TYPE|normalize_name}}           → dap_list_t* → dap_list_t_PTR
 {{LIST|split|pipe}}               → split by |
 {{LIST|part|0}}                   → first element
 {{VALUE|ne|0}}                    → check if not zero
 {{TEXT|contains|test}}            → check if contains "test"
 ```
+
+**Note:** Additional variable functions may be available through extensions (e.g., `normalize_name`, `escape_name`, `sanitize_name` from mocking extensions).
 
 ### Conditionals
 
@@ -474,20 +470,22 @@ char*|get_name|const char* id}}
 ```
 {{#set TYPES=int|char*|dap_list_t*}}
 {{#for type in TYPES}}
-{{#set SAFE_NAME={{type|normalize_name}}}}
+{{#set TYPE_NAME={{type|replace|*|_ptr|replace| |_}}}}
 typedef struct {
     {{type}} value;
     int is_valid;
-} safe_{{SAFE_NAME}}_t;
+} safe_{{TYPE_NAME}}_t;
 
-safe_{{SAFE_NAME}}_t* create_{{SAFE_NAME}}({{type}} val) {
-    safe_{{SAFE_NAME}}_t* result = malloc(sizeof(safe_{{SAFE_NAME}}_t));
+safe_{{TYPE_NAME}}_t* create_{{TYPE_NAME}}({{type}} val) {
+    safe_{{TYPE_NAME}}_t* result = malloc(sizeof(safe_{{TYPE_NAME}}_t));
     result->value = val;
     result->is_valid = 1;
     return result;
 }
 {{/for}}
 ```
+
+**Note:** For C-specific name normalization (e.g., `normalize_name`), use mocking extensions.
 
 ### Recipe 5: Conditional Mock Generation
 
@@ -655,6 +653,8 @@ Place custom constructs in a separate directory and use:
 ```bash
 --extensions-dir path/to/extensions
 ```
+
+Each extension should contain `definition.awk`, `tokenizer.awk`, and `evaluator.awk` files (as needed).
 
 ### Performance Optimization
 
@@ -887,13 +887,12 @@ echo "// Date: $(date)"
 | part | `{{VAR\|part\|N}}` | Get Nth part | `{{LIST\|part\|0}}` |
 | trim | `{{VAR\|trim}}` | Trim whitespace | `{{NAME\|trim}}` |
 | contains | `{{VAR\|contains\|text}}` | Check substring | `{{TYPE\|contains\|*}}` |
+| replace | `{{VAR\|replace\|pat\|rep}}` | Replace pattern | `{{TEXT\|replace\|old\|new}}` |
 | ne | `{{VAR\|ne\|val}}` | Not equal | `{{COUNT\|ne\|0}}` |
 | in_list | `{{VAR\|in_list}}` | In list check | `{{ITEM\|in_list}}` |
 | remove_suffix | `{{VAR\|remove_suffix\|suf}}` | Remove suffix | `{{TYPE\|remove_suffix\|_t}}` |
-| normalize_name | `{{VAR\|normalize_name}}` | C identifier | `{{TYPE\|normalize_name}}` |
-| escape_name | `{{VAR\|escape_name}}` | Escape chars | `{{TYPE\|escape_name}}` |
-| escape_char | `{{VAR\|escape_char\|c\|r}}` | Replace char | `{{TYPE\|escape_char\|*\|_PTR}}` |
-| sanitize_name | `{{VAR\|sanitize_name}}` | Clean name | `{{NAME\|sanitize_name}}` |
+
+**Note:** Additional functions (e.g., `normalize_name`, `escape_name`, `sanitize_name`) may be available through extensions.
 
 ### Appendix B: Operator Precedence
 
@@ -932,9 +931,15 @@ cat /tmp/output.txt
 # Verify result
 diff expected_output.txt /tmp/output.txt
 
-# Run system tests
-cd tests
-./run.sh
+# Run system tests (from dap-sdk/tests/)
+cd ../../tests
+./run.sh test-framework     # Run all test-framework tests
+./run.sh unit               # Run unit tests only
+./run.sh integration        # Run integration tests only
+
+# Or via CTest (from dap-sdk/build/)
+cd ../build
+ctest -L test-framework --output-on-failure
 ```
 
 ---

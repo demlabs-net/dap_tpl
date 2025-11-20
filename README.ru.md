@@ -99,6 +99,33 @@ ENGINE_OUTPUT=$(./utils/build_engine.sh 2>&1)
 COMPILED_ENGINE=$(echo "$ENGINE_OUTPUT" | grep "^ENGINE_PATH=" | cut -d'=' -f2-)
 ```
 
+## Тестирование
+
+Все тесты находятся в директории `dap-sdk/tests/` и могут быть запущены через:
+
+```bash
+# Из директории dap-sdk/tests/
+cd ../../tests
+./run.sh                    # Все тесты (C тесты + test-framework тесты)
+./run.sh unit               # Только unit тесты
+./run.sh integration        # Только integration тесты
+./run.sh test-framework     # Только test-framework тесты (AWK/shell)
+./run.sh c-tests            # Только C тесты (через ctest)
+```
+
+**Через CTest (рекомендуется):**
+```bash
+cd dap-sdk/build
+ctest -L test-framework --output-on-failure
+```
+
+**Структура тестов:**
+- `tests/unit/test-framework/` - Unit тесты для dap_tpl core
+- `tests/integration/test-framework/` - Integration тесты для полного пайплайна
+- `tests/unit/test-framework/c/` - C тесты для mock framework
+
+Результаты тестов: 41+ тестов (27 unit + 10 integration + 4 mocking)
+
 ## Документация
 
 - **[docs/DAP_TPL_GUIDE.ru.md](docs/DAP_TPL_GUIDE.ru.md)** - Полное руководство с туториалом, справочником и cookbook
@@ -112,14 +139,9 @@ COMPILED_ENGINE=$(echo "$ENGINE_OUTPUT" | grep "^ENGINE_PATH=" | cut -d'=' -f2-)
 - `contains` - Проверить подстроку: `{{VAR|contains|text}}`
 - `ne` - Не равно: `{{VAR|ne|value}}`
 - `in_list` - Проверить в списке: `{{VAR|in_list}}`
+- `replace` - Заменить паттерн: `{{VAR|replace|pattern|replacement}}`
 - `remove_suffix` - Удалить суффикс: `{{VAR|remove_suffix|_t}}`
 - `trim` - Убрать пробелы: `{{VAR|trim}}`
-
-Функции для мокинга:
-- `normalize_name` - Нормализовать идентификатор: `{{TYPE|normalize_name}}`
-- `escape_name` - Экранировать символы: `{{TYPE|escape_name}}`
-- `escape_char` - Экранировать конкретный: `{{TYPE|escape_char|*|_PTR}}`
-- `sanitize_name` - Очистить имя: `{{TYPE|sanitize_name}}`
 
 ## Добавление новых конструкций
 

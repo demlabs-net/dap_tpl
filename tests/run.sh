@@ -4,6 +4,7 @@
 #   ./run.sh all                    - Run all tests
 #   ./run.sh unit                   - Run all unit tests
 #   ./run.sh integration            - Run all integration tests
+#   ./run.sh regression             - Run all regression tests
 #   ./run.sh unit/core              - Run all tests in unit/core
 #   ./run.sh unit/core/test_marker_parser  - Run specific test runner
 #   ./run.sh unit/core/marker_parser_tests/test_parse_simple_marker  - Run specific test file
@@ -215,9 +216,18 @@ if [ "$TARGET" == "all" ]; then
     else
         integration_result=1
     fi
+    echo ""
+    
+    # Run regression tests
+    print_info "=== Regression Tests ==="
+    if run_tests_in_dir "${SCRIPT_DIR}/regression"; then
+        regression_result=0
+    else
+        regression_result=1
+    fi
     
     echo ""
-    if [ $unit_result -eq 0 ] && [ $integration_result -eq 0 ]; then
+    if [ $unit_result -eq 0 ] && [ $integration_result -eq 0 ] && [ $regression_result -eq 0 ]; then
         print_success "✅ All tests passed!"
         exit 0
     else
@@ -228,6 +238,9 @@ if [ "$TARGET" == "all" ]; then
         fi
         if [ $integration_result -ne 0 ]; then
             echo "  - Integration tests: FAILED"
+        fi
+        if [ $regression_result -ne 0 ]; then
+            echo "  - Regression tests: FAILED"
         fi
         exit 1
     fi
@@ -245,6 +258,15 @@ elif [ "$TARGET" == "integration" ]; then
     print_info "Running all integration tests..."
     echo ""
     if run_tests_in_dir "${SCRIPT_DIR}/integration"; then
+        exit 0
+    else
+        exit 1
+    fi
+    
+elif [ "$TARGET" == "regression" ]; then
+    print_info "Running all regression tests..."
+    echo ""
+    if run_tests_in_dir "${SCRIPT_DIR}/regression"; then
         exit 0
     else
         exit 1
@@ -277,12 +299,13 @@ elif [ -d "${SCRIPT_DIR}/${TARGET}" ]; then
 else
     print_error "Unknown test target: $TARGET"
     echo ""
-    echo "Usage: $0 [all|unit|integration|path/to/test]"
+    echo "Usage: $0 [all|unit|integration|regression|path/to/test]"
     echo ""
     echo "Examples:"
     echo "  $0 all                                          # Run all tests"
     echo "  $0 unit                                         # Run all unit tests"
     echo "  $0 integration                                  # Run all integration tests"
+    echo "  $0 regression                                   # Run all regression tests"
     echo "  $0 unit/core                                    # Run all tests in unit/core"
     echo "  $0 unit/core/test_marker_parser                 # Run specific test runner"
     echo "  $0 unit/core/marker_parser_tests/test_parse_simple_marker  # Run specific test file"

@@ -102,14 +102,30 @@ COMPILED_ENGINE=$(echo "$ENGINE_OUTPUT" | grep "^ENGINE_PATH=" | cut -d'=' -f2-)
 
 ## Testing
 
+All tests are located in `dap-sdk/tests/` directory and can be run via:
+
 ```bash
-cd tests
-./run.sh              # All tests (unit + integration)
-./run.sh unit         # Unit tests only
-./run.sh integration  # Integration tests only
+# From dap-sdk/tests/ directory
+cd ../../tests
+./run.sh                    # All tests (C tests + test-framework tests)
+./run.sh unit               # Unit tests only
+./run.sh integration        # Integration tests only
+./run.sh test-framework     # Only test-framework tests (AWK/shell)
+./run.sh c-tests            # Only C tests (via ctest)
 ```
 
-Test results: 41 tests (27 unit + 10 integration + 4 mocking)
+**Via CTest (recommended):**
+```bash
+cd dap-sdk/build
+ctest -L test-framework --output-on-failure
+```
+
+**Test Structure:**
+- `tests/unit/test-framework/` - Unit tests for dap_tpl core
+- `tests/integration/test-framework/` - Integration tests for full pipeline
+- `tests/unit/test-framework/c/` - C tests for mock framework
+
+Test results: 41+ tests (27 unit + 10 integration + 4 mocking)
 
 ## Documentation
 
@@ -124,14 +140,9 @@ Core functions:
 - `contains` - Check substring: `{{VAR|contains|text}}`
 - `ne` - Not equal: `{{VAR|ne|value}}`
 - `in_list` - Check in list: `{{VAR|in_list}}`
+- `replace` - Replace pattern: `{{VAR|replace|pattern|replacement}}`
 - `remove_suffix` - Remove suffix: `{{VAR|remove_suffix|_t}}`
 - `trim` - Trim whitespace: `{{VAR|trim}}`
-
-Mocking functions:
-- `normalize_name` - Normalize identifier: `{{TYPE|normalize_name}}`
-- `escape_name` - Escape chars: `{{TYPE|escape_name}}`
-- `escape_char` - Escape specific: `{{TYPE|escape_char|*|_PTR}}`
-- `sanitize_name` - Clean name: `{{TYPE|sanitize_name}}`
 
 ## Adding New Constructs
 
