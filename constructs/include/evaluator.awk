@@ -48,7 +48,8 @@ function evaluate_include(token_id, depth,    file_path, condition, metadata, fi
         scripts_dir = ENVIRON["SCRIPTS_DIR"]
         if (scripts_dir == "") scripts_dir = "."
         
-        temp_output = "/tmp/include_" NR "_" depth "_" rand() ".out"
+        # Use PID and timestamp for unique temp file name to avoid collisions in parallel builds
+        temp_output = "/tmp/include_" PROCINFO["pid"] "_" NR "_" depth "_" rand() "_" systime() ".out"
         
         env_vars_str = ""
         export_context_to_environ()
