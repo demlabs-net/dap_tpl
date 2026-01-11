@@ -44,6 +44,46 @@ cd dap_tpl/tests/regression
 - Одиночную запись
 - Реальный сценарий генерации function wrappers
 
+### test_if_multiline_variable.sh
+
+**Баг:** При использовании `{{#if VARIABLE}}` с multiline переменными условие возвращало FALSE, хотя переменная была непустой. Причина - race condition в parallel builds и некорректная генерация temp файлов.
+
+**Исправлено в:** `utils/build_engine.sh`, `constructs/include/evaluator.awk`, `core/main_pipeline.awk`
+
+**Проверяет:**
+- Корректную работу `{{#if}}` с multiline переменными
+- Параллельное выполнение template processing
+- Атомарность записи compiled engine
+- Уникальность temp файлов
+
+### test_logical_operators_with_nested_comparisons.sh
+
+**Баг:** Логические операторы (`||`, `&&`) с вложенными comparisons работали неправильно из-за конфликта разделителей. Parser использовал `|` как разделитель, но вложенные comparisons тоже содержат `|` в структуре (`==|VAR|value`), что приводило к неправильному split и некорректной evaluации.
+
+**Пример бага:**
+```
+Условие: ARCH == "sve" || ARCH == "sve2"
+Parser: "OR|==|ARCH|sve|==|ARCH|sve2"
+Split:  [1]=OR [2]=== [3]=ARCH [4]=sve [5]=== [6]=ARCH [7]=sve2
+Ошибка: evaluate_logical_or получил "==" как левое выражение → всегда TRUE!
+```
+
+**Исправлено в:** 
+- `conditions/logical/or/parser.awk` (использует `@@` вместо `|`)
+- `conditions/logical/and/parser.awk` (использует `@@` вместо `|`)
+- `conditions/logical/not/parser.awk` (использует `@@` вместо `|`)
+- `core/condition_parser.awk` (детекция delimiter по префиксу оператора)
+
+**Проверяет:**
+- OR оператор с вложенными `==` и `!=` comparisons
+- AND оператор с вложенными comparisons
+- NOT оператор с вложенными comparisons
+- Chained операторы (left-to-right evaluation)
+- Edge cases: пустые строки, числа, `>`, `<`, `>=`, `<=`
+- Real-world use cases: SVE/SVE2 detection, архитектурные conditionals
+
+**26 тестов** покрывают все комбинации и edge cases.
+
 ## Добавление нового регрессионного теста
 
 1. Создайте файл `test_<описание_бага>.sh` в этой папке
