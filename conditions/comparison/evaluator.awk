@@ -74,6 +74,7 @@ function evaluate_comparison(op, parts,    left, right, var_name, func_name, fun
         right = substr(right, RSTART + 1, RLENGTH - 2)
     }
     
+    
     # Debug output - always log for type comparisons
     if (var_name == "type") {
         log_debug("evaluate_comparison: var_name=[%s] base_value=[%s] left_val=[%s] right=[%s] op=[%s] result=%d context_level=%d", var_name, base_value, left_val, right, op, (left_val == right ? 1 : 0), context_level)

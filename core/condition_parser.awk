@@ -75,13 +75,28 @@ function parse_condition(condition_expr,    trimmed, result) {
 # Parameters:
 #   parsed_cond - parsed condition from parse_condition()
 # Returns: 1 if true, 0 if false
-function evaluate_parsed_condition(parsed_cond,    parts, op, i) {
+function evaluate_parsed_condition(parsed_cond,    parts, op, i, delimiter) {
     if (parsed_cond == "") {
         return 0
     }
     
-    split(parsed_cond, parts, "|")
-    op = parts[1]
+    # Determine delimiter based on operator
+    # OR, AND, NOT use @@ delimiter to avoid conflicts with | in sub-conditions
+    # First, extract operator to determine delimiter
+    if (match(parsed_cond, /^(OR|AND|NOT)@@/)) {
+        delimiter = "@@"
+        op = substr(parsed_cond, 1, RLENGTH - 2)  # Remove @@
+    } else {
+        delimiter = "|"
+        # Extract op from first part
+        if (match(parsed_cond, /^[^|]+/)) {
+            op = substr(parsed_cond, 1, RLENGTH)
+        } else {
+            op = ""
+        }
+    }
+    
+    split(parsed_cond, parts, delimiter)
     
     # Debug output for ALL comparisons with 'type'
     if (op == "==" && parts[2] ~ /type/) {
