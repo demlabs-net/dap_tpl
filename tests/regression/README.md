@@ -84,6 +84,22 @@ Split:  [1]=OR [2]=== [3]=ARCH [4]=sve [5]=== [6]=ARCH [7]=sve2
 
 **26 тестов** покрывают все комбинации и edge cases.
 
+### test_include_templates_dir.sh
+
+**Баг:** При использовании `{{#include "sub_template.tpl"}}` с `TEMPLATES_DIR`, механизм include не мог найти sub-template в `TEMPLATES_DIR`. Он искал файлы только относительно местоположения основного шаблона, что не позволяло организовать модульную структуру шаблонов с общими sub-templates в отдельной директории.
+
+**Исправлено в:** `constructs/include/evaluator.awk`
+
+**Проверяет:**
+- Базовый `{{#include}}` с `TEMPLATES_DIR`
+- `{{#include}}` с условиями (conditionals) в sub-template
+- `{{#include}}` с переменными, определенными до include
+- Вложенные `{{#include}}` (sub-template включает другой sub-template)
+- Real-world сценарий: SIMD string scanner include с архитектурно-специфичными помощниками (AVX-512, SSE2)
+- Обработка отсутствующих sub-templates
+
+**6 тестов** проверяют все основные use-cases для модульной организации шаблонов.
+
 ## Добавление нового регрессионного теста
 
 1. Создайте файл `test_<описание_бага>.sh` в этой папке

@@ -35,12 +35,26 @@ function evaluate_include(token_id, depth,    file_path, condition, metadata, fi
         return 0
     }
     
+    # Resolve file path using TEMPLATES_DIR if file is not absolute
     templates_dir = ENVIRON["TEMPLATES_DIR"]
     if (templates_dir != "" && file_path !~ /^\//) {
+        # First try: TEMPLATES_DIR/file_path
         full_path = templates_dir "/" file_path
         if ((getline line < full_path) >= 0) {
             close(full_path)
             file_path = full_path
+        } else {
+            close(full_path)
+            # Second try: relative to current working directory
+            # This allows includes from subdirectories in templates
+            if ((getline line < file_path) >= 0) {
+                close(file_path)
+                # file_path remains as-is (relative)
+            } else {
+                close(file_path)
+                # File not found in either location
+                # Keep file_path as-is and let subsequent code handle the error
+            }
         }
     }
     
@@ -98,7 +112,8 @@ function evaluate_include(token_id, depth,    file_path, condition, metadata, fi
         # Build command with proper quoting
         # CRITICAL: Pass DAP_TPL_ENGINE_PATH to child process so it can use the same engine
         # Note: env_vars_str already includes leading space
-        cmd = sprintf("cd '%s' && AWKPATH='%s' DAP_TPL_ENGINE_PATH='%s'%s gawk -f '%s' '%s' > '%s' 2>&1", scripts_dir, scripts_dir, engine_file, env_vars_str, engine_file, file_path, temp_output)
+        # Note: No `cd` needed - file_path is already resolved to absolute path if from TEMPLATES_DIR
+        cmd = sprintf("AWKPATH='%s' DAP_TPL_ENGINE_PATH='%s'%s gawk -f '%s' '%s' > '%s' 2>&1", scripts_dir, engine_file, env_vars_str, engine_file, file_path, temp_output)
         
         rc = system(cmd)
         

@@ -1,0 +1,3 @@
+{{#if ENABLE_FEATURE}}
+FEATURE ENABLED: {{FEATURE_NAME}}
+{{/if}}
