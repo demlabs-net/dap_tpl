@@ -87,7 +87,19 @@ replace_template_placeholders() {
     fi
 }
 
-# Call main function if script is executed directly
-if [ "$#" -gt 0 ]; then
-    replace_template_placeholders "$@"
+# Call main function if script is executed directly (not sourced)
+# In bash: when sourced, $0 != ${BASH_SOURCE[0]}
+# In sh: we check if $0 contains dap_tpl.sh
+if [ "$#" -gt 0 ] && [ -n "${BASH_SOURCE-}" ]; then
+    # Bash detected, check if executed directly
+    if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+        replace_template_placeholders "$@"
+    fi
+elif [ "$#" -gt 0 ] && [ -z "${BASH_SOURCE-}" ]; then
+    # Plain sh, check if $0 looks like this script
+    case "$0" in
+        *dap_tpl.sh)
+            replace_template_placeholders "$@"
+            ;;
+    esac
 fi

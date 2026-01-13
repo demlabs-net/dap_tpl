@@ -8,7 +8,13 @@
 #   parts - array with parsed parts
 # Returns: 1 if comparison is true, 0 otherwise
 # NODISPATCH: internal helper with special calling convention
-function evaluate_comparison(op, parts,    left, right, var_name, func_name, func_arg, base_value, left_val, i, right_start) {
+function evaluate_comparison(op, parts,    left, right, var_name, func_name, func_arg, base_value, left_val, i, right_start, actual_var_start, parts_len) {
+    # Calculate parts array length (mawk-compatible way)
+    parts_len = 0
+    for (i in parts) {
+        if (i > parts_len) parts_len = i
+    }
+    
     # Get left value - reconstruct from parts[2] onwards until we find the right value
     # Format is: op|left|right, but left may contain | (e.g., VAR||)
     # parse_comparison returns: op|parsed_left|right
@@ -17,7 +23,7 @@ function evaluate_comparison(op, parts,    left, right, var_name, func_name, fun
     # Right is always the LAST non-empty part after the operator
     # Find right by going backwards from the end
     right_start = 0
-    for (i = length(parts); i >= 3; i--) {
+    for (i = parts_len; i >= 3; i--) {
         if (parts[i] != "") {
             right_start = i
             break
@@ -67,7 +73,7 @@ function evaluate_comparison(op, parts,    left, right, var_name, func_name, fun
     # Get right value - use right_start to find correct position
     # right_start was calculated above based on parts structure
     right = ""
-    if (right_start <= length(parts)) {
+    if (right_start <= parts_len) {
         right = parts[right_start]
     }
     # Note: quotes are already removed by parse_comparison, but check anyway for safety
@@ -82,7 +88,7 @@ function evaluate_comparison(op, parts,    left, right, var_name, func_name, fun
         if (var_name in ENVIRON) {
         }
         # Check all parts for debugging
-        for (i = 1; i <= length(parts) && i <= 5; i++) {
+        for (i = 1; i <= parts_len && i <= 5; i++) {
         }
     }
     
