@@ -121,30 +121,30 @@ function execute_awk_script_with_input(script_code, input_file,    script_file, 
         # Use preprocessed script
         if (env_vars != "") {
             if (input_file != "") {
-                cmd = "env" env_vars " gawk -f " preprocessed_script " " input_file " 2>&1"
+                cmd = "env" env_vars " mawk -f " preprocessed_script " " input_file " 2>&1"
             } else {
-                cmd = "env" env_vars " gawk -f " preprocessed_script " 2>&1"
+                cmd = "env" env_vars " mawk -f " preprocessed_script " 2>&1"
             }
         } else {
             if (input_file != "") {
-                cmd = "gawk -f " preprocessed_script " " input_file " 2>&1"
+                cmd = "mawk -f " preprocessed_script " " input_file " 2>&1"
             } else {
-                cmd = "gawk -f " preprocessed_script " 2>&1"
+                cmd = "mawk -f " preprocessed_script " 2>&1"
             }
         }
     } else {
         # Regular awk (no @include)
         if (env_vars != "") {
             if (input_file != "") {
-                cmd = "env" env_vars " gawk -f " script_file " " input_file " 2>&1"
+                cmd = "env" env_vars " mawk -f " script_file " " input_file " 2>&1"
             } else {
-                cmd = "env" env_vars " gawk -f " script_file " 2>&1"
+                cmd = "env" env_vars " mawk -f " script_file " 2>&1"
             }
         } else {
             if (input_file != "") {
-                cmd = "gawk -f " script_file " " input_file " 2>&1"
+                cmd = "mawk -f " script_file " " input_file " 2>&1"
             } else {
-                cmd = "gawk -f " script_file " 2>&1"
+                cmd = "mawk -f " script_file " 2>&1"
             }
         }
     }

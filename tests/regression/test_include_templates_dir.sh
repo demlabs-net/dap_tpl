@@ -57,7 +57,7 @@ EOF
 export MESSAGE="Hello from include"
 
 # Process template (cd to DAP_TPL_DIR for @include paths to work)
-OUTPUT=$(cd "$DAP_TPL_DIR" && gawk -f "$COMPILED_ENGINE" "$MAIN_TEMPLATE" 2>/dev/null)
+OUTPUT=$(cd "$DAP_TPL_DIR" && mawk -f "$COMPILED_ENGINE" "$MAIN_TEMPLATE" 2>/dev/null)
 
 # Verify output
 if ! echo "$OUTPUT" | grep -q "BEFORE"; then
@@ -103,7 +103,7 @@ EOF
 export ENABLE_FEATURE="YES"
 export FEATURE_NAME="SuperFeature"
 
-OUTPUT2=$(cd "$DAP_TPL_DIR" && gawk -f "$COMPILED_ENGINE" "$MAIN_TEMPLATE2" 2>/dev/null)
+OUTPUT2=$(cd "$DAP_TPL_DIR" && mawk -f "$COMPILED_ENGINE" "$MAIN_TEMPLATE2" 2>/dev/null)
 
 if ! echo "$OUTPUT2" | grep -q "FEATURE ENABLED: SuperFeature"; then
     echo "FAIL: Conditional in included template should be processed"
@@ -130,7 +130,7 @@ CONFIG:
 {{#include sub_with_vars.tpl}}
 EOF
 
-OUTPUT3=$(cd "$DAP_TPL_DIR" && gawk -f "$COMPILED_ENGINE" "$MAIN_TEMPLATE3" 2>/dev/null)
+OUTPUT3=$(cd "$DAP_TPL_DIR" && mawk -f "$COMPILED_ENGINE" "$MAIN_TEMPLATE3" 2>/dev/null)
 
 if ! echo "$OUTPUT3" | grep -q "ARCH: AVX2"; then
     echo "FAIL: Variable ARCH_NAME should be available in included template"
@@ -170,7 +170,7 @@ EOF
 
 export DATA="Nested Include Works"
 
-OUTPUT4=$(cd "$DAP_TPL_DIR" && gawk -f "$COMPILED_ENGINE" "$MAIN_TEMPLATE4" 2>/dev/null)
+OUTPUT4=$(cd "$DAP_TPL_DIR" && mawk -f "$COMPILED_ENGINE" "$MAIN_TEMPLATE4" 2>/dev/null)
 
 if ! echo "$OUTPUT4" | grep -q "MAIN START"; then
     echo "FAIL: Main template marker should be present"
@@ -285,7 +285,7 @@ export CMPEQ_EPI8_MASK="_mm512_cmpeq_epi8_mask"
 export MOVEMASK_TYPE="__mmask64"
 export USE_AVX512_MASK="1"
 
-OUTPUT5_AVX512=$(cd "$DAP_TPL_DIR" && gawk -f "$COMPILED_ENGINE" "$MAIN_TEMPLATE5" 2>/dev/null)
+OUTPUT5_AVX512=$(cd "$DAP_TPL_DIR" && mawk -f "$COMPILED_ENGINE" "$MAIN_TEMPLATE5" 2>/dev/null)
 
 if ! echo "$OUTPUT5_AVX512" | grep -q "// Generated SIMD implementation for AVX-512"; then
     echo "FAIL: AVX-512 header should be present"
@@ -331,7 +331,7 @@ export MOVEMASK_EPI8="_mm_movemask_epi8"
 export MASK_TYPE="uint16_t"
 export USE_AVX512_MASK=""
 
-OUTPUT5_SSE2=$(cd "$DAP_TPL_DIR" && gawk -f "$COMPILED_ENGINE" "$MAIN_TEMPLATE5" 2>/dev/null)
+OUTPUT5_SSE2=$(cd "$DAP_TPL_DIR" && mawk -f "$COMPILED_ENGINE" "$MAIN_TEMPLATE5" 2>/dev/null)
 
 if ! echo "$OUTPUT5_SSE2" | grep -q "// Generated SIMD implementation for SSE2"; then
     echo "FAIL: SSE2 header should be present"
@@ -381,7 +381,7 @@ END
 EOF
 
 # This should produce an error or empty output for the include
-OUTPUT6=$(cd "$DAP_TPL_DIR" && gawk -f "$COMPILED_ENGINE" "$MAIN_TEMPLATE6" 2>&1 || echo "ERROR_OCCURRED")
+OUTPUT6=$(cd "$DAP_TPL_DIR" && mawk -f "$COMPILED_ENGINE" "$MAIN_TEMPLATE6" 2>&1 || echo "ERROR_OCCURRED")
 
 # We expect either an error message or the include to be skipped
 if echo "$OUTPUT6" | grep -q "START" && echo "$OUTPUT6" | grep -q "END"; then

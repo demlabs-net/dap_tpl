@@ -1,16 +1,16 @@
 # Token Tree Management
 # Provides functions for creating and managing AST (Abstract Syntax Tree) of template tokens
-# Uses GAWK 5.2.1 true multidimensional arrays: tokens[id]["field"]
+# Uses SUBSEP for multidimensional array simulation
 
-# Token structure:
-#   tokens[token_id]["type"] - token type: "text", "if", "for", "set", "var", "awk_section"
-#   tokens[token_id]["value"] - token value (for text/var tokens)
-#   tokens[token_id]["metadata"]["condition"] - condition expression (for if/for/set)
-#   tokens[token_id]["metadata"]["var_name"] - variable name (for set/var)
-#   tokens[token_id]["metadata"]["start_line"] - starting line number
-#   tokens[token_id]["metadata"]["end_line"] - ending line number
-#   tokens[token_id]["children"]["count"] - number of child tokens
-#   tokens[token_id]["children"][1..N] - child token IDs
+# Token structure (using SUBSEP):
+#   tokens[token_id SUBSEP "type"] - token type: "text", "if", "for", "set", "var", "awk_section"
+#   tokens[token_id SUBSEP "value"] - token value (for text/var tokens)
+#   tokens[token_id SUBSEP "metadata" SUBSEP "condition"] - condition expression (for if/for/set)
+#   tokens[token_id SUBSEP "metadata" SUBSEP "var_name"] - variable name (for set/var)
+#   tokens[token_id SUBSEP "metadata" SUBSEP "start_line"] - starting line number
+#   tokens[token_id SUBSEP "metadata" SUBSEP "end_line"] - ending line number
+#   tokens[token_id SUBSEP "children" SUBSEP "count"] - number of child tokens
+#   tokens[token_id SUBSEP "children" SUBSEP 1..N] - child token IDs
 
 BEGIN {
     # Global token counter
@@ -23,16 +23,15 @@ BEGIN {
 #   value - token value (optional, for text/var tokens)
 #   metadata - associative array with metadata (condition, var_name, start_line, end_line)
 # Returns: token ID
+# NODISPATCH: takes array parameter
 function create_token(type, value, metadata,    token_id, key) {
     token_id = next_token_id++
-    tokens[token_id]["type"] = type
+    tokens[token_id SUBSEP "type"] = type
     # Always set value, even if empty (needed for text tokens with empty content)
-    tokens[token_id]["value"] = value
-    # Copy metadata
-    if (isarray(metadata)) {
-        for (key in metadata) {
-            tokens[token_id]["metadata"][key] = metadata[key]
-        }
+    tokens[token_id SUBSEP "value"] = value
+    # Copy metadata - for-in loop safely handles undefined arrays
+    for (key in metadata) {
+        tokens[token_id SUBSEP "metadata" SUBSEP key] = metadata[key]
     }
     return token_id
 }
@@ -42,14 +41,14 @@ function create_token(type, value, metadata,    token_id, key) {
 #   parent_id - parent token ID
 #   child_id - child token ID
 function add_child(parent_id, child_id) {
-    if (!(parent_id in tokens)) {
+    if (!((parent_id SUBSEP "type") in tokens)) {
         return
     }
-    if (!("children" in tokens[parent_id])) {
-        tokens[parent_id]["children"]["count"] = 0
+    if (!((parent_id SUBSEP "children" SUBSEP "count") in tokens)) {
+        tokens[parent_id SUBSEP "children" SUBSEP "count"] = 0
     }
-    tokens[parent_id]["children"]["count"]++
-    tokens[parent_id]["children"][tokens[parent_id]["children"]["count"]] = child_id
+    tokens[parent_id SUBSEP "children" SUBSEP "count"]++
+    tokens[parent_id SUBSEP "children" SUBSEP tokens[parent_id SUBSEP "children" SUBSEP "count"]] = child_id
 }
 
 # Get children count for a token
@@ -57,13 +56,13 @@ function add_child(parent_id, child_id) {
 #   token_id - token ID
 # Returns: number of children
 function get_children_count(token_id) {
-    if (!(token_id in tokens)) {
+    if (!((token_id SUBSEP "type") in tokens)) {
         return 0
     }
-    if (!("children" in tokens[token_id])) {
+    if (!((token_id SUBSEP "children" SUBSEP "count") in tokens)) {
         return 0
     }
-    return tokens[token_id]["children"]["count"]
+    return tokens[token_id SUBSEP "children" SUBSEP "count"]
 }
 
 # Get child token ID by index
@@ -72,16 +71,16 @@ function get_children_count(token_id) {
 #   child_idx - child index (1-based)
 # Returns: child token ID or 0 if not found
 function get_child(token_id, child_idx) {
-    if (!(token_id in tokens)) {
+    if (!((token_id SUBSEP "type") in tokens)) {
         return 0
     }
-    if (!("children" in tokens[token_id])) {
+    if (!((token_id SUBSEP "children" SUBSEP "count") in tokens)) {
         return 0
     }
-    if (child_idx < 1 || child_idx > tokens[token_id]["children"]["count"]) {
+    if (child_idx < 1 || child_idx > tokens[token_id SUBSEP "children" SUBSEP "count"]) {
         return 0
     }
-    return tokens[token_id]["children"][child_idx]
+    return tokens[token_id SUBSEP "children" SUBSEP child_idx]
 }
 
 # Clone a subtree (deep copy)
@@ -89,17 +88,22 @@ function get_child(token_id, child_idx) {
 #   token_id - root token ID to clone
 # Returns: new root token ID
 function clone_subtree(token_id,    new_id, type, value, metadata, child_count, i, child_id, new_child_id, key, condition) {
-    if (!(token_id in tokens)) {
+    if (!((token_id SUBSEP "type") in tokens)) {
         return 0
     }
     
-    type = tokens[token_id]["type"]
-    value = tokens[token_id]["value"]
+    type = tokens[token_id SUBSEP "type"]
+    value = tokens[token_id SUBSEP "value"]
     
     # Copy metadata
     delete metadata
-    for (key in tokens[token_id]["metadata"]) {
-        metadata[key] = tokens[token_id]["metadata"][key]
+    for (key in tokens) {
+        # Extract metadata keys for this token_id
+        if (index(key, token_id SUBSEP "metadata" SUBSEP) == 1) {
+            # Extract the field name after "metadata" SUBSEP
+            field = substr(key, length(token_id SUBSEP "metadata" SUBSEP) + 1)
+            metadata[field] = tokens[key]
+        }
     }
     
     # Create new token
@@ -110,7 +114,7 @@ function clone_subtree(token_id,    new_id, type, value, metadata, child_count, 
     
     # Debug output for if tokens with type == 'void' condition
     if (type == "if") {
-        condition = metadata["condition"]
+        condition = tokens[token_id SUBSEP "metadata" SUBSEP "condition"]
         if (condition ~ /type.*==.*void/) {
             log_debug("clone_subtree: BEFORE clone, token_id=%d type=%s children=%d condition=[%s]\n", token_id, type, child_count, condition)
         }
@@ -142,7 +146,7 @@ function clone_subtree(token_id,    new_id, type, value, metadata, child_count, 
 #   user_data - optional user data to pass to callback
 #   depth - current depth (internal, starts at 0)
 function traverse_tree(token_id, callback_func, user_data, depth,    child_count, i, child_id) {
-    if (!(token_id in tokens)) {
+    if (!((token_id SUBSEP "type") in tokens)) {
         return
     }
     
@@ -150,8 +154,8 @@ function traverse_tree(token_id, callback_func, user_data, depth,    child_count
         depth = 0
     }
     
-    # Call callback function using indirect call
-    @callback_func(token_id, depth, user_data)
+    # Call callback function using dispatch
+    dispatch_3(callback_func, token_id, depth, user_data)
     
     # Traverse children
     child_count = get_children_count(token_id)
@@ -166,10 +170,10 @@ function traverse_tree(token_id, callback_func, user_data, depth,    child_count
 #   token_id - token ID
 # Returns: token type or empty string
 function get_token_type(token_id) {
-    if (!(token_id in tokens)) {
+    if (!((token_id SUBSEP "type") in tokens)) {
         return ""
     }
-    return tokens[token_id]["type"]
+    return tokens[token_id SUBSEP "type"]
 }
 
 # Get token value
@@ -177,10 +181,10 @@ function get_token_type(token_id) {
 #   token_id - token ID
 # Returns: token value or empty string
 function get_token_value(token_id) {
-    if (!(token_id in tokens)) {
+    if (!((token_id SUBSEP "type") in tokens)) {
         return ""
     }
-    return tokens[token_id]["value"]
+    return tokens[token_id SUBSEP "value"]
 }
 
 # Set token value
@@ -188,8 +192,8 @@ function get_token_value(token_id) {
 #   token_id - token ID
 #   value - new value
 function set_token_value(token_id, value) {
-    if (token_id in tokens) {
-        tokens[token_id]["value"] = value
+    if ((token_id SUBSEP "type") in tokens) {
+        tokens[token_id SUBSEP "value"] = value
     }
 }
 
@@ -198,14 +202,15 @@ function set_token_value(token_id, value) {
 #   token_id - token ID
 #   field - metadata field name
 # Returns: metadata value or empty string
-function get_token_metadata(token_id, field) {
-    if (!(token_id in tokens)) {
+function get_token_metadata(token_id, field,    key) {
+    if (!((token_id SUBSEP "type") in tokens)) {
         return ""
     }
-    if (!(field in tokens[token_id]["metadata"])) {
+    key = token_id SUBSEP "metadata" SUBSEP field
+    if (!(key in tokens)) {
         return ""
     }
-    return tokens[token_id]["metadata"][field]
+    return tokens[key]
 }
 
 # Set token metadata field
@@ -214,8 +219,8 @@ function get_token_metadata(token_id, field) {
 #   field - metadata field name
 #   value - metadata value
 function set_token_metadata(token_id, field, value) {
-    if (token_id in tokens) {
-        tokens[token_id]["metadata"][field] = value
+    if ((token_id SUBSEP "type") in tokens) {
+        tokens[token_id SUBSEP "metadata" SUBSEP field] = value
     }
 }
 
@@ -224,7 +229,8 @@ function set_token_metadata(token_id, field, value) {
 #   token_id - token ID
 # Returns: 1 if exists, 0 otherwise
 function token_exists(token_id) {
-    return (token_id in tokens) ? 1 : 0
+    # Tokens stored with SUBSEP: token_id SUBSEP "type"
+    return ((token_id SUBSEP "type") in tokens) ? 1 : 0
 }
 
 # Clear all tokens (reset tree)

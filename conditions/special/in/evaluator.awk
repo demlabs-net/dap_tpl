@@ -5,6 +5,7 @@
 # Parameters:
 #   parts - array with parsed parts [1]=op, [2]=left, [3+]=right
 # Returns: 1 if left is in right list, 0 otherwise
+# NODISPATCH: internal helper with special calling convention
 function evaluate_in_list(parts,    left, right, var_name, func_name, func_arg, base_value, left_val, i) {
     left = parts[2]
     

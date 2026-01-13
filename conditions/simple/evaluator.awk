@@ -6,6 +6,7 @@
 #   parts - array with parsed parts
 #   For simple var without operator: parts[1]=VAR, parts[2]=func (or empty), parts[3]=arg (or empty)
 # Returns: 1 if variable is truthy (non-empty and not "0"), 0 otherwise
+# NODISPATCH: internal helper with special calling convention
 function evaluate_simple_var(parts,    var_name, func_name, func_arg, base_value, value) {
     # Parts come from split by "|", so:
     # - parts[1] is the variable name

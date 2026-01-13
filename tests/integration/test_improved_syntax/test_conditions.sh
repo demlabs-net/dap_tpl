@@ -44,7 +44,7 @@ Value equals 10
 EOF
 
 export VAR="10"
-OUTPUT=$(cd "$DAP_TPL_DIR" && gawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>&1)
+OUTPUT=$(cd "$DAP_TPL_DIR" && mawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>&1)
 
 EXPECTED="
 Value is not zero: 10
@@ -76,7 +76,7 @@ Does not contain 'test'
 EOF
 
 export VAR="this is a test string"
-OUTPUT2=$(cd "$DAP_TPL_DIR" && gawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE2" 2>&1)
+OUTPUT2=$(cd "$DAP_TPL_DIR" && mawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE2" 2>&1)
 
 EXPECTED2="Contains 'test'
 "
@@ -115,7 +115,7 @@ EOF
 
 export VAR1="1"
 export VAR2="0"
-OUTPUT3=$(cd "$DAP_TPL_DIR" && gawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE3" 2>&1)
+OUTPUT3=$(cd "$DAP_TPL_DIR" && mawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE3" 2>&1)
 
 EXPECTED3="At least one is false
 

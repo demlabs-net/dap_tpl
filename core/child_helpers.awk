@@ -42,6 +42,7 @@ function copy_children_except(source_id, dest_id, exclude_types,    child_count,
 #   type - child type to filter
 #   result_array - output array (will be indexed 1..N)
 # Returns: count of matching children
+# NODISPATCH: takes array parameter
 function get_children_by_type(token_id, type, result_array,    child_count, i, child_id, child_type, count) {
     delete result_array
     child_count = get_children_count(token_id)

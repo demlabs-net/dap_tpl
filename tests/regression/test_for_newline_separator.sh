@@ -43,7 +43,7 @@ export FUNCTIONS_DATA="func1
 func2
 func3"
 
-OUTPUT=$(cd "$DAP_TPL_DIR" && gawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>/dev/null)
+OUTPUT=$(cd "$DAP_TPL_DIR" && mawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>/dev/null)
 
 # Check that all entries are processed
 if ! echo "$OUTPUT" | grep -q "Entry: func1"; then
@@ -94,7 +94,7 @@ export FUNCTIONS_DATA="void|func1
 int|func2
 char*|func3"
 
-OUTPUT2=$(cd "$DAP_TPL_DIR" && gawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE2" 2>/dev/null)
+OUTPUT2=$(cd "$DAP_TPL_DIR" && mawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE2" 2>/dev/null)
 
 # Check that all functions are processed correctly
 if ! echo "$OUTPUT2" | grep -q "Function: func1"; then
@@ -153,7 +153,7 @@ echo "PASS: Newline-separated data with pipe-separated entries"
 # Test 3: Empty newline-separated data
 echo "Test 3: Empty newline-separated data"
 export FUNCTIONS_DATA=""
-OUTPUT3=$(cd "$DAP_TPL_DIR" && gawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>/dev/null)
+OUTPUT3=$(cd "$DAP_TPL_DIR" && mawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>/dev/null)
 
 # Should produce no output (empty loop)
 if [ -n "$OUTPUT3" ]; then
@@ -168,7 +168,7 @@ echo "PASS: Empty newline-separated data"
 # Test 4: Single entry with newline
 echo "Test 4: Single entry with newline"
 export FUNCTIONS_DATA="func1"
-OUTPUT4=$(cd "$DAP_TPL_DIR" && gawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>/dev/null)
+OUTPUT4=$(cd "$DAP_TPL_DIR" && mawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>/dev/null)
 
 # Should process single entry
 if ! echo "$OUTPUT4" | grep -q "Entry: func1"; then
@@ -212,7 +212,7 @@ export FUNCTIONS_DATA="dap_client_http_t*|dap_client_http_request_full|PARAM(...
 void|dap_client_http_request_async|PARAM(...)
 dap_client_http_t*|dap_client_http_request|PARAM(...)"
 
-OUTPUT5=$(cd "$DAP_TPL_DIR" && gawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE5" 2>/dev/null)
+OUTPUT5=$(cd "$DAP_TPL_DIR" && mawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE5" 2>/dev/null)
 
 # Check that all functions are processed
 if ! echo "$OUTPUT5" | grep -q "Wrapper for function: dap_client_http_request_full"; then

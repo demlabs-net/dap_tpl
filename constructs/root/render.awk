@@ -66,7 +66,6 @@ function render_root_token(token_id,    child_count, i, child_id, child_type, ch
         if (processed_result == "SKIP") {
             # Debug output disabled by default - use DEBUG_ENABLED to enable
             # if (DEBUG_ENABLED && (child_text ~ /VOID|NON-VOID/ || child_type == "var")) {
-            #     log_debug("render_root_token: child[%d] SKIPPED by process_child_token, type=%s text=[%s] prev_type=%s prev_text=[%s]", i, child_type, child_text, prev_type, prev_text)
             # }
             continue
         } else if (processed_result != "") {
@@ -82,7 +81,6 @@ function render_root_token(token_id,    child_count, i, child_id, child_type, ch
             if (processed_result == "SKIP") {
                 # Debug output disabled by default - use DEBUG_ENABLED to enable
                 # if (DEBUG_ENABLED && (child_text ~ /VOID|NON-VOID/ || child_type == "var")) {
-                #     log_debug("render_root_token: child[%d] SKIPPED by process_text_token, type=%s text=[%s]", i, child_type, child_text)
                 # }
                 continue
             } else if (processed_result != "") {
@@ -96,7 +94,6 @@ function render_root_token(token_id,    child_count, i, child_id, child_type, ch
             if (filtered_result == "SKIP") {
                 # Debug output disabled by default - use DEBUG_ENABLED to enable
                 # if (DEBUG_ENABLED && child_text ~ /VOID|NON-VOID/) {
-                #     log_debug("render_root_token: child[%d] SKIPPED by filter_text_token, type=%s text=[%s]", i, child_type, child_text)
                 # }
                 continue
             } else if (filtered_result != "") {
@@ -115,13 +112,11 @@ function render_root_token(token_id,    child_count, i, child_id, child_type, ch
         
         # Debug output disabled by default - use DEBUG_ENABLED to enable
         # if (DEBUG_ENABLED && child_count > 0 && length(result) == 0 && i <= 3) {
-        #     log_debug("render_root_token: child[%d] type=%s text=[%s] text_length=%d result_so_far=[%s] skip_empty=%s", i, child_type, child_text, length(child_text), result, skip_empty)
         # }
     }
     
     # Debug output disabled by default - use DEBUG_ENABLED to enable
     # if (DEBUG_ENABLED && child_count > 0 && length(result) == 0) {
-    #     log_debug("render_root_token: FINAL result=[%s] length=%d token_id=%d children=%d", result, length(result), token_id, child_count)
     # }
     
     # Final cleanup: remove any remaining construct markers that shouldn't be in output
@@ -168,7 +163,6 @@ function render_root_token(token_id,    child_count, i, child_id, child_type, ch
     
     # If markers were removed, log it
     if (length(cleaned_result) != original_length) {
-        log_debug("render_root_token: removed construct markers, original_length=%d cleaned_length=%d iterations=%d", original_length, length(cleaned_result), iterations)
     }
     
     return cleaned_result

@@ -16,6 +16,9 @@ init_test_counters
 
 TESTS_DIR="${TEST_DIR}/variable_functions_tests"
 
+# Source common helpers
+source "${DAP_TPL_DIR}/tests/fixtures/test_helpers_common.sh"
+
 echo "Running variable_functions tests..."
 
 # Test new name manipulation functions (only core functions, mocking functions moved to mocks/tests)

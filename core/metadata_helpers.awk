@@ -22,6 +22,7 @@ function create_text_result(text,    metadata) {
 
 # Create empty result token (for no-output constructs)
 # Returns: token ID
+# NODISPATCH: creates empty result array
 function create_empty_result(    metadata) {
     delete metadata
     return create_token("root", "", metadata)

@@ -16,6 +16,14 @@ DAP_TPL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 export SCRIPTS_DIR="${DAP_TPL_DIR}"
 export AWKPATH="${DAP_TPL_DIR}"
 
+# Build engine before running tests
+echo "Building AWK engine..."
+if ! "${DAP_TPL_DIR}/utils/build_engine.sh" >/dev/null 2>&1; then
+    echo "ERROR: Failed to build engine" >&2
+    exit 1
+fi
+ENGINE_FILE="/tmp/dap_tpl_engine.awk"
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -39,14 +47,24 @@ print_warning() {
     echo -e "${YELLOW}$1${NC}"
 }
 
-# Function to run a single .awk test file
+# Function to run a single .awk test file  
 run_awk_test() {
     local test_file="$1"
     local test_name=$(basename "$test_file" .awk)
     
-    # Run test with gawk from dap_tpl directory where modules are visible
+    # Preprocess the test file to expand @include directives
+    local preprocessed="/tmp/dap_tpl_test_$$.awk"
+    if ! AWKPATH="${DAP_TPL_DIR}" "${DAP_TPL_DIR}/utils/awk_include_preprocessor.sh" "$test_file" "${DAP_TPL_DIR}" > "$preprocessed" 2>/dev/null; then
+        echo "FAIL"
+        echo "    Error: Failed to preprocess test file"
+        rm -f "$preprocessed"
+        return 1
+    fi
+    
+    # Run preprocessed test
     local result
-    if result=$(cd "$DAP_TPL_DIR" && gawk -f "$test_file" <<< "" 2>&1); then
+    if result=$(cd "$DAP_TPL_DIR" && mawk -f "$preprocessed" <<< "" 2>&1); then
+        rm -f "$preprocessed"
         if echo "$result" | grep -q "^PASS$"; then
             echo "PASS"
             return 0
@@ -56,6 +74,7 @@ run_awk_test() {
             return 1
         fi
     else
+        rm -f "$preprocessed"
         echo "FAIL"
         echo "    Error: $result"
         return 1
@@ -143,9 +162,12 @@ run_tests_in_dir() {
             runner_name=$(basename "$runner_file" .sh)
             if run_test_runner "$runner_file"; then
                 ((passed++)) || true
+                ((TOTAL_PASSED++)) || true
             else
                 ((failed++)) || true
+                ((TOTAL_FAILED++)) || true
                 failed_tests+=("$runner_name")
+                FAILED_TEST_LIST+=("$runner_name")
             fi
             echo ""
         fi
@@ -157,19 +179,29 @@ run_tests_in_dir() {
         # Check if there's a corresponding runner script
         subdir_parent=$(dirname "$subdir")
         subdir_name=$(basename "$subdir" _tests)
-        runner_file="${subdir_parent}/test_${subdir_name}.sh"
         
-        if [ ! -f "$runner_file" ]; then
-            # No runner found, run tests directly
-            found_any=1
-            print_info "Running $(basename "$subdir") tests..."
-            if run_awk_tests_in_dir "$subdir"; then
-                ((passed++)) || true
-            else
-                ((failed++)) || true
-            fi
-            echo ""
+        # Try multiple possible runner names
+        runner_file="${subdir_parent}/test_${subdir_name}.sh"
+        runner_file_plural="${subdir_parent}/test_${subdir_name}s.sh"
+        
+        if [ -f "$runner_file" ] || [ -f "$runner_file_plural" ]; then
+            # Runner exists, skip (it will be handled by the runner loop above)
+            continue
         fi
+        
+        # No runner found, run tests directly
+        found_any=1
+        subdir_test_name=$(basename "$subdir")
+        print_info "Running $subdir_test_name tests..."
+        if run_awk_tests_in_dir "$subdir"; then
+            ((passed++)) || true
+            ((TOTAL_PASSED++)) || true
+        else
+            ((failed++)) || true
+            ((TOTAL_FAILED++)) || true
+            FAILED_TEST_LIST+=("$subdir_test_name")
+        fi
+        echo ""
     done < <(find "$test_dir" -type d -name "*_tests" | sort)
     
     if [ $found_any -eq 0 ]; then
@@ -180,7 +212,7 @@ run_tests_in_dir() {
     if [ $failed -eq 0 ] && [ $passed -gt 0 ]; then
         return 0
     elif [ $failed -gt 0 ]; then
-        # Print list of failed tests
+        # Print list of failed tests in this directory
         if [ ${#failed_tests[@]} -gt 0 ]; then
             print_error "Failed tests in $(basename "$test_dir"):"
             for test in "${failed_tests[@]}"; do
@@ -193,6 +225,11 @@ run_tests_in_dir() {
     fi
 }
 
+# Global counters for detailed statistics
+TOTAL_PASSED=0
+TOTAL_FAILED=0
+FAILED_TEST_LIST=()
+
 # Main logic
 TARGET="${1:-all}"
 
@@ -202,46 +239,79 @@ if [ "$TARGET" == "all" ]; then
     
     # Run unit tests
     print_info "=== Unit Tests ==="
+    UNIT_FAILED_BEFORE=${#FAILED_TEST_LIST[@]}
     if run_tests_in_dir "${SCRIPT_DIR}/unit"; then
         unit_result=0
     else
         unit_result=1
     fi
+    UNIT_FAILED_AFTER=${#FAILED_TEST_LIST[@]}
     echo ""
     
     # Run integration tests
     print_info "=== Integration Tests ==="
+    INTEGRATION_FAILED_BEFORE=${#FAILED_TEST_LIST[@]}
     if run_tests_in_dir "${SCRIPT_DIR}/integration"; then
         integration_result=0
     else
         integration_result=1
     fi
+    INTEGRATION_FAILED_AFTER=${#FAILED_TEST_LIST[@]}
     echo ""
     
     # Run regression tests
     print_info "=== Regression Tests ==="
+    REGRESSION_FAILED_BEFORE=${#FAILED_TEST_LIST[@]}
     if run_tests_in_dir "${SCRIPT_DIR}/regression"; then
         regression_result=0
     else
         regression_result=1
     fi
+    REGRESSION_FAILED_AFTER=${#FAILED_TEST_LIST[@]}
     
+    # Print detailed summary
     echo ""
-    if [ $unit_result -eq 0 ] && [ $integration_result -eq 0 ] && [ $regression_result -eq 0 ]; then
-        print_success "✅ All tests passed!"
+    echo "==========================================="
+    print_info "TEST SUMMARY"
+    echo "==========================================="
+    echo "Total tests run:    $((TOTAL_PASSED + TOTAL_FAILED))"
+    echo "Passed:             $TOTAL_PASSED"
+    echo "Failed:             $TOTAL_FAILED"
+    echo ""
+    
+    if [ $TOTAL_FAILED -eq 0 ]; then
+        print_success "✅ ALL TESTS PASSED!"
         exit 0
     else
+        print_error "❌ FAILED TESTS:"
         echo ""
-        print_error "❌ Some tests failed:"
+        
+        # Group by category
         if [ $unit_result -ne 0 ]; then
-            echo "  - Unit tests: FAILED"
+            print_error "Unit Tests ($((UNIT_FAILED_AFTER - UNIT_FAILED_BEFORE)) failed):"
+            for ((i=UNIT_FAILED_BEFORE; i<UNIT_FAILED_AFTER; i++)); do
+                echo "  - ${FAILED_TEST_LIST[$i]}"
+            done
+            echo ""
         fi
+        
         if [ $integration_result -ne 0 ]; then
-            echo "  - Integration tests: FAILED"
+            print_error "Integration Tests ($((INTEGRATION_FAILED_AFTER - INTEGRATION_FAILED_BEFORE)) failed):"
+            for ((i=INTEGRATION_FAILED_BEFORE; i<INTEGRATION_FAILED_AFTER; i++)); do
+                echo "  - ${FAILED_TEST_LIST[$i]}"
+            done
+            echo ""
         fi
+        
         if [ $regression_result -ne 0 ]; then
-            echo "  - Regression tests: FAILED"
+            print_error "Regression Tests ($((REGRESSION_FAILED_AFTER - REGRESSION_FAILED_BEFORE)) failed):"
+            for ((i=REGRESSION_FAILED_BEFORE; i<REGRESSION_FAILED_AFTER; i++)); do
+                echo "  - ${FAILED_TEST_LIST[$i]}"
+            done
+            echo ""
         fi
+        
+        echo "==========================================="
         exit 1
     fi
     

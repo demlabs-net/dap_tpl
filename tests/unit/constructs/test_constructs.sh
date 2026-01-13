@@ -8,6 +8,9 @@ TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DAP_TPL_DIR="$(cd "$TEST_DIR/../../.." && pwd)"
 TESTS_DIR="${TEST_DIR}"
 
+# Source common helpers
+source "${DAP_TPL_DIR}/tests/fixtures/test_helpers_common.sh"
+
 if [ ! -d "$TESTS_DIR" ]; then
     echo "ERROR: Test directory not found: $TESTS_DIR"
     exit 1
@@ -31,8 +34,8 @@ for test_file in "$TESTS_DIR"/*.awk; do
     test_name=$(basename "$test_file" .awk)
     echo -n "  $test_name: "
     
-    # Run test with gawk from dap_tpl directory where modules are visible
-    if result=$(cd "$DAP_TPL_DIR" && gawk -f "$test_file" <<< "" 2>&1); then
+    # Run test with preprocessing
+    if result=$(run_preprocessed_awk_test "$test_file" "$DAP_TPL_DIR" 2>&1); then
         if echo "$result" | grep -q "^PASS$"; then
             echo "PASS"
             ((passed++)) || true

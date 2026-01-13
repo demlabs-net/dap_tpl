@@ -30,7 +30,6 @@
 @include "constructs/var/evaluator.awk"
 @include "constructs/var/render.awk"
 @include "conditions/condition_loader.awk"
-@include "tests/fixtures/dispatch_stubs.awk"
 
 BEGIN {
     test_count = 0

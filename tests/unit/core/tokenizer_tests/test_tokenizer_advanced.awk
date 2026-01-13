@@ -16,7 +16,6 @@
 @include "constructs/awk_section/tokenizer.awk"
 
 # Include dispatch function stubs for tests
-@include "tests/fixtures/dispatch_stubs.awk"
 
 @include "core/tokenizer_core.awk"
 

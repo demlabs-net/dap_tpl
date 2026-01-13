@@ -7,7 +7,6 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DAP_TPL_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-TEMPLATES_DIR="$(cd "$DAP_TPL_DIR/../templates" && pwd)"
 FIXTURES_DIR="$(cd "$SCRIPT_DIR/../fixtures" && pwd)"
 
 # Load dap_tpl functions

@@ -113,7 +113,7 @@ function evaluate_include(token_id, depth,    file_path, condition, metadata, fi
         # CRITICAL: Pass DAP_TPL_ENGINE_PATH to child process so it can use the same engine
         # Note: env_vars_str already includes leading space
         # Note: No `cd` needed - file_path is already resolved to absolute path if from TEMPLATES_DIR
-        cmd = sprintf("AWKPATH='%s' DAP_TPL_ENGINE_PATH='%s'%s gawk -f '%s' '%s' > '%s' 2>&1", scripts_dir, engine_file, env_vars_str, engine_file, file_path, temp_output)
+        cmd = sprintf("AWKPATH='%s' DAP_TPL_ENGINE_PATH='%s'%s mawk -f '%s' '%s' > '%s' 2>&1", scripts_dir, engine_file, env_vars_str, engine_file, file_path, temp_output)
         
         rc = system(cmd)
         

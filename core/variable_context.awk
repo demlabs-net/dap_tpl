@@ -1,11 +1,11 @@
 # Variable Context Management
 # Provides stack-based variable scoping for template processing
-# Uses GAWK 4+ true multidimensional arrays: contexts[level]["vars"][name]
+# Uses SUBSEP for multidimensional array simulation
 # Note: This is the new Clean Architecture implementation
 
-# Context structure:
-#   contexts[level]["vars"][var_name] - variable value
-#   contexts[level]["parent"] - parent context level (for nested scopes)
+# Context structure (using SUBSEP):
+#   contexts[level SUBSEP "vars" SUBSEP var_name] - variable value
+#   contexts[level SUBSEP "parent"] - parent context level (for nested scopes)
 
 BEGIN {
     # Global context stack
@@ -17,7 +17,7 @@ BEGIN {
 function push_context(    new_level) {
     context_level++
     new_level = context_level
-    contexts[new_level]["parent"] = (context_level > 1) ? (context_level - 1) : 0
+    contexts[new_level SUBSEP "parent"] = (context_level > 1) ? (context_level - 1) : 0
     return new_level
 }
 
@@ -46,7 +46,7 @@ function set_var(var_name, value) {
         # No context - create root context
         push_context()
     }
-    contexts[context_level]["vars"][var_name] = value
+    contexts[context_level SUBSEP "vars" SUBSEP var_name] = value
     # CRITICAL: Always sync to ENVIRON for cross-iteration visibility
     # This ensures variables set inside for loops are visible in subsequent iterations
     ENVIRON[var_name] = value
@@ -56,17 +56,19 @@ function set_var(var_name, value) {
 # Parameters:
 #   var_name - variable name
 # Returns: variable value or empty string if not found
-function get_var(var_name,    level, parent) {
+function get_var(var_name,    level, parent, key) {
     level = context_level
     
     # Search from current context up to root
     while (level > 0) {
-        if (var_name in contexts[level]["vars"]) {
-            return contexts[level]["vars"][var_name]
+        key = level SUBSEP "vars" SUBSEP var_name
+        if (key in contexts) {
+            return contexts[key]
         }
         # Move to parent context
-        if (level in contexts && "parent" in contexts[level]) {
-            parent = contexts[level]["parent"]
+        key = level SUBSEP "parent"
+        if (key in contexts) {
+            parent = contexts[key]
             level = parent
         } else {
             break
@@ -85,17 +87,19 @@ function get_var(var_name,    level, parent) {
 # Parameters:
 #   var_name - variable name
 # Returns: 1 if exists, 0 otherwise
-function has_var(var_name,    level, parent) {
+function has_var(var_name,    level, parent, key) {
     level = context_level
     
     # Search from current context up to root
     while (level > 0) {
-        if (var_name in contexts[level]["vars"]) {
+        key = level SUBSEP "vars" SUBSEP var_name
+        if (key in contexts) {
             return 1
         }
         # Move to parent context
-        if (level in contexts && "parent" in contexts[level]) {
-            parent = contexts[level]["parent"]
+        key = level SUBSEP "parent"
+        if (key in contexts) {
+            parent = contexts[key]
             level = parent
         } else {
             break
@@ -117,7 +121,7 @@ function has_var(var_name,    level, parent) {
 #   value - variable value
 function set_var_at_level(level, var_name, value) {
     if (level > 0 && level <= context_level) {
-        contexts[level]["vars"][var_name] = value
+        contexts[level SUBSEP "vars" SUBSEP var_name] = value
     }
 }
 
@@ -126,9 +130,10 @@ function set_var_at_level(level, var_name, value) {
 #   level - context level
 #   var_name - variable name
 # Returns: variable value or empty string if not found
-function get_var_at_level(level, var_name) {
-    if (level > 0 && level <= context_level && var_name in contexts[level]["vars"]) {
-        return contexts[level]["vars"][var_name]
+function get_var_at_level(level, var_name,    key) {
+    key = level SUBSEP "vars" SUBSEP var_name
+    if (level > 0 && level <= context_level && key in contexts) {
+        return contexts[key]
     }
     return ""
 }
@@ -142,18 +147,24 @@ function clear_contexts() {
 # Export all variables from current context to ENVIRON
 # This is useful for compatibility with legacy code that uses ENVIRON
 # Exports from all context levels (current and parents)
-function export_context_to_environ(    var_name, level, parent) {
+function export_context_to_environ(    var_name, level, parent, key, prefix) {
     level = context_level
     # Export from all context levels, starting from current down to root
     while (level > 0) {
-        if (level in contexts && "vars" in contexts[level]) {
-            for (var_name in contexts[level]["vars"]) {
-                ENVIRON[var_name] = contexts[level]["vars"][var_name]
+        # Iterate through all variables in this level
+        prefix = level SUBSEP "vars" SUBSEP
+        for (key in contexts) {
+            # Check if key belongs to current level's vars
+            if (index(key, prefix) == 1) {
+                # Extract variable name
+                var_name = substr(key, length(prefix) + 1)
+                ENVIRON[var_name] = contexts[key]
             }
         }
         # Move to parent context
-        if (level in contexts && "parent" in contexts[level]) {
-            parent = contexts[level]["parent"]
+        key = level SUBSEP "parent"
+        if (key in contexts) {
+            parent = contexts[key]
             level = parent
         } else {
             break

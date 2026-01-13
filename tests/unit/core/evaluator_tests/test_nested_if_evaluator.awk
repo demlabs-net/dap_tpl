@@ -17,7 +17,6 @@
 @include "constructs/var/evaluator.awk"
 
 # Include dispatch function stubs for tests
-@include "tests/fixtures/dispatch_stubs.awk"
 
 @include "core/evaluator_core.awk"
 

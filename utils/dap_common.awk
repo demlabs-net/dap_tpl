@@ -2,7 +2,7 @@
 # Common AWK Library for DAP Mock Template Processing
 # ============================================================================
 # This library provides reusable functions for AWK scripts used in template processing
-# Include this file using: @include "dap_common.awk" (gawk 4.0+) or -f dap_common.awk
+# Include this file using: @include "dap_common.awk" or -f dap_common.awk
 #
 # Functions:
 #   - parse_pipe_separated(entry, parts, delimiter) - parse pipe-separated data

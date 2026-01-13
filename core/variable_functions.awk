@@ -30,7 +30,7 @@ function process_split(var_name, func_arg, base_value,    delimiter, n, parts_ar
 }
 
 # Process part function: gets part by index
-function process_part(var_name, func_arg,    index_str, index_num, part_var) {
+function process_part(var_name, func_arg, base_value,    index_str, index_num, part_var) {
     index_str = func_arg
     gsub(/^[ \t]+|[ \t]+$/, "", index_str)
     index_num = int(index_str)

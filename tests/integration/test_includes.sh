@@ -45,7 +45,7 @@ if [ -z "$COMPILED_ENGINE" ] || [ ! -f "$COMPILED_ENGINE" ]; then
     exit 1
 fi
 
-OUTPUT=$(cd "$DAP_TPL_DIR" && env AWKPATH="$DAP_TPL_DIR" DAP_TPL_ENGINE_PATH="$COMPILED_ENGINE" gawk -f "$COMPILED_ENGINE" "$MAIN_TEMPLATE" 2>&1)
+OUTPUT=$(cd "$DAP_TPL_DIR" && env AWKPATH="$DAP_TPL_DIR" DAP_TPL_ENGINE_PATH="$COMPILED_ENGINE" mawk -f "$COMPILED_ENGINE" "$MAIN_TEMPLATE" 2>&1)
 
 # Check for shell errors first
 if echo "$OUTPUT" | grep -q "Syntax error"; then
@@ -83,7 +83,7 @@ EXPECTED_REGULAR="#define CONFIG_VALUE 42
 "
 
 # Use the same compiled engine (don't rely on cached version)
-OUTPUT_REGULAR=$(cd "$DAP_TPL_DIR" && env AWKPATH="$DAP_TPL_DIR" gawk -f "$COMPILED_ENGINE" "$REGULAR_TEMPLATE" 2>&1)
+OUTPUT_REGULAR=$(cd "$DAP_TPL_DIR" && env AWKPATH="$DAP_TPL_DIR" mawk -f "$COMPILED_ENGINE" "$REGULAR_TEMPLATE" 2>&1)
 
 # Check for shell errors
 if echo "$OUTPUT_REGULAR" | grep -q "Syntax error"; then

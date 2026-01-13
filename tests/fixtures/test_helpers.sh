@@ -52,13 +52,23 @@ run_awk_test() {
     echo -n "${indent}${test_name}: "
     
     # Run test with DEBUG_ENABLED=0 to suppress debug output
-    # Capture both stdout and stderr separately
+    # Use preprocessing pipeline for @include, @func(), etc.
     local temp_stdout="/tmp/test_awk_stdout_$$_${RANDOM}.txt"
     local temp_stderr="/tmp/test_awk_stderr_$$_${RANDOM}.txt"
     local exit_code=0
     local result=""
     
-    (cd "$DAP_TPL_DIR" && DEBUG_ENABLED=0 gawk -f "$test_file" <<< "" > "$temp_stdout" 2>"$temp_stderr") || exit_code=$?
+    # Source common preprocessing helpers
+    source "${DAP_TPL_DIR}/tests/fixtures/test_helpers_common.sh"
+    
+    # Run with full preprocessing
+    if preprocessed_result=$(run_preprocessed_awk_test "$test_file" "$DAP_TPL_DIR" 2>"$temp_stderr"); then
+        echo "$preprocessed_result" > "$temp_stdout"
+        exit_code=0
+    else
+        exit_code=$?
+        echo "$preprocessed_result" > "$temp_stdout"
+    fi
     
     local stdout_output=""
     local stderr_output=""

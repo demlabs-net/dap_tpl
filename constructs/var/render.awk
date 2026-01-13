@@ -35,7 +35,6 @@ function render_var_token(token_id,    var_name, parsed_expr, var_name_parsed, f
         result_value = base_value
     }
     
-    log_debug("render_var_token: token_id=%d var_name=[%s] result_value=[%s]", token_id, var_name, result_value)
     return result_value
 }
 

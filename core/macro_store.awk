@@ -43,6 +43,7 @@ function get_macro(macro_name) {
 #   param_count - number of parameters
 #   params - array of parameter values (params[0], params[1], ...)
 # Returns: expanded macro content
+# NODISPATCH: takes array parameter
 function expand_macro(macro_name, param_count, params,    macro_content, i, param_var, param_value, result) {
     macro_content = get_macro(macro_name)
     if (macro_content == "") {

@@ -1,16 +1,16 @@
 # Construct Registry
 # Provides registration and lookup functions for template constructs
-# Uses associative arrays for O(1) lookup performance
+# Uses SUBSEP for multidimensional array simulation
 
-# Registry structure:
+# Registry structure (using SUBSEP for 2D arrays):
 #   CONSTRUCT_PATTERNS[construct_type] = regex_pattern
 #   TOKENIZER_FUNCTIONS[construct_type] = function_name
 #   EVALUATOR_FUNCTIONS[construct_type] = function_name
 #   RENDERER_FUNCTIONS[token_type] = function_name
 #   CLOSING_PATTERNS[closing_tag] = construct_type
-#   SPECIAL_MARKERS[construct_type][pattern] = token_type
+#   SPECIAL_MARKERS[construct_type SUBSEP pattern] = token_type
 #   BRANCH_PARSER_FUNCTIONS[construct_type] = function_name
-#   BRANCH_MARKER_PATTERNS[construct_type][pattern] = 1
+#   BRANCH_MARKER_PATTERNS[construct_type SUBSEP pattern] = 1
 #   CONTENT_PARSER_FUNCTIONS[construct_type] = function_name
 #   SELF_CONTAINED_CONSTRUCTS[construct_type] = 1
 #   SKIP_EMPTY_TEXT_CONSTRUCTS[construct_type] = 1
@@ -47,9 +47,9 @@ function register_closing_pattern(construct_type, closing_tag) {
 #   pattern - regex pattern for special marker
 #   token_type - token type for this marker
 function register_special_marker(construct_type, pattern, token_type) {
-    SPECIAL_MARKERS[construct_type][pattern] = token_type
+    SPECIAL_MARKERS[construct_type SUBSEP pattern] = token_type
     # Also register as branch marker pattern
-    BRANCH_MARKER_PATTERNS[construct_type][pattern] = 1
+    BRANCH_MARKER_PATTERNS[construct_type SUBSEP pattern] = 1
 }
 
 # Register a branch parser function for a construct
@@ -66,9 +66,13 @@ function register_branch_parser(construct_type, parser_func) {
 #   construct_type - construct type
 #   marker_text - marker text
 # Returns: 1 if branch marker, 0 otherwise
-function is_branch_marker(construct_type, marker_text,    pattern) {
-    if (construct_type in BRANCH_MARKER_PATTERNS) {
-        for (pattern in BRANCH_MARKER_PATTERNS[construct_type]) {
+function is_branch_marker(construct_type, marker_text,    key, pattern, prefix) {
+    # Iterate through all BRANCH_MARKER_PATTERNS keys that start with construct_type
+    prefix = construct_type SUBSEP
+    for (key in BRANCH_MARKER_PATTERNS) {
+        if (index(key, prefix) == 1) {
+            # Extract pattern from key
+            pattern = substr(key, length(prefix) + 1)
             if (match(marker_text, pattern)) {
                 return 1
             }
@@ -307,11 +311,15 @@ function get_construct_for_closing(closing_tag) {
 #   construct_type - parent construct type
 #   marker_text - marker text to check
 # Returns: token type or empty string
-function get_special_marker_type(construct_type, marker_text,    pattern) {
-    if (construct_type in SPECIAL_MARKERS) {
-        for (pattern in SPECIAL_MARKERS[construct_type]) {
+function get_special_marker_type(construct_type, marker_text,    key, pattern, prefix) {
+    # Iterate through all SPECIAL_MARKERS keys that start with construct_type
+    prefix = construct_type SUBSEP
+    for (key in SPECIAL_MARKERS) {
+        if (index(key, prefix) == 1) {
+            # Extract pattern from key
+            pattern = substr(key, length(prefix) + 1)
             if (match(marker_text, pattern)) {
-                return SPECIAL_MARKERS[construct_type][pattern]
+                return SPECIAL_MARKERS[key]
             }
         }
     }

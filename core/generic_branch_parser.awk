@@ -15,6 +15,7 @@
 #   construct_type - construct type (e.g., "if", "c_ifdef")
 #   positions - output array: positions[i, "pos"], positions[i, "type"], positions[i, "condition"]
 # Returns: count of branches found
+# NODISPATCH: uses array parameter
 function find_branches_generic(content, construct_type, positions,    pos, marker_pos, marker_end, marker_text, count, actual_pos, pattern, token_type, condition_match, depth, closing_tag, closing_pattern) {
     delete positions
     count = 0
@@ -90,28 +91,26 @@ function find_branches_generic(content, construct_type, positions,    pos, marke
                 # For patterns with capture groups like "^#elif[ \t]+(.+)$", extract condition
                 # For patterns without capture groups like "^else$", condition is empty
                 condition_match = ""
-                if (construct_type in SPECIAL_MARKERS) {
-                    for (pattern in SPECIAL_MARKERS[construct_type]) {
-                        if (match(marker_text, pattern)) {
-                            # Pattern matched - check if it has capture group for condition
-                            if (pattern ~ /\(\.\+\)/) {
-                                # Pattern has capture group - extract condition
-                                # Find keyword end position in marker_text
-                                keyword_end = 0
-                                if (match(marker_text, /^#?[a-z_]+/)) {
-                                    keyword_end = RSTART + RLENGTH
-                                    # Skip whitespace
-                                    while (keyword_end <= length(marker_text) && substr(marker_text, keyword_end, 1) ~ /[ \t]/) {
-                                        keyword_end++
-                                    }
-                                    if (keyword_end <= length(marker_text)) {
-                                        condition_match = substr(marker_text, keyword_end)
-                                        gsub(/^[ \t]+|[ \t]+$/, "", condition_match)
-                                    }
+                for (pattern in SPECIAL_MARKERS[construct_type]) {
+                    if (match(marker_text, pattern)) {
+                        # Pattern matched - check if it has capture group for condition
+                        if (pattern ~ /\(\.\+\)/) {
+                            # Pattern has capture group - extract condition
+                            # Find keyword end position in marker_text
+                            keyword_end = 0
+                            if (match(marker_text, /^#?[a-z_]+/)) {
+                                keyword_end = RSTART + RLENGTH
+                                # Skip whitespace
+                                while (keyword_end <= length(marker_text) && substr(marker_text, keyword_end, 1) ~ /[ \t]/) {
+                                    keyword_end++
+                                }
+                                if (keyword_end <= length(marker_text)) {
+                                    condition_match = substr(marker_text, keyword_end)
+                                    gsub(/^[ \t]+|[ \t]+$/, "", condition_match)
                                 }
                             }
-                            break
                         }
+                        break
                     }
                 }
                 

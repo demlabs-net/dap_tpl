@@ -15,7 +15,6 @@ function render_text_token(token_id,    value, replaced_value, cleaned_value, it
     
     # Debug output disabled by default - use DEBUG_ENABLED to enable
     # if (DEBUG_ENABLED && value ~ /\n/ && length(value) > 1) {
-    #     log_debug("render_text_token: START token_id=%d value=[%s] value_length=%d", token_id, value, length(value))
     # }
     
     # Remove construct markers ({{#if}}, {{#set}}, {{/if}}, etc.) that shouldn't be in output
@@ -115,10 +114,8 @@ function render_text_token(token_id,    value, replaced_value, cleaned_value, it
                     }
                     final_iterations++
                 }
-                log_debug("render_text_token: token_id=%d replaced variables and removed remaining markers, original=[%s] cleaned=[%s] replaced=[%s] final=[%s]", token_id, value, cleaned_value, replaced_value, final_cleaned)
                 return final_cleaned
             }
-            log_debug("render_text_token: token_id=%d replaced variables, original=[%s] cleaned=[%s] replaced=[%s]", token_id, value, cleaned_value, replaced_value)
             return replaced_value
         } else {
             # Still have construct markers - remove them
@@ -161,23 +158,19 @@ function render_text_token(token_id,    value, replaced_value, cleaned_value, it
                 }
                 final_iterations++
             }
-            log_debug("render_text_token: token_id=%d removed remaining construct markers, original=[%s] cleaned=[%s] final=[%s]", token_id, value, cleaned_value, final_cleaned)
             return final_cleaned
         }
     }
     
     if (cleaned_value != value) {
-        log_debug("render_text_token: token_id=%d removed construct markers, original=[%s] cleaned=[%s]", token_id, value, cleaned_value)
         # Debug output disabled by default - use DEBUG_ENABLED to enable
         # if (DEBUG_ENABLED && length(value) > 0 && length(cleaned_value) == 0) {
-        #     log_debug("render_text_token: WARNING token_id=%d cleaned_value is EMPTY after marker removal, original=[%s] original_length=%d", token_id, value, length(value))
         # }
         return cleaned_value
     }
     
     # Debug output disabled by default - use DEBUG_ENABLED to enable
     # if (DEBUG_ENABLED && value ~ /\n/ && length(value) > 1) {
-    #     log_debug("render_text_token: RETURN token_id=%d value=[%s] value_length=%d", token_id, value, length(value))
     # }
     
     return value
