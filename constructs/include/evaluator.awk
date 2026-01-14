@@ -4,7 +4,7 @@
 @include "core/token_tree.awk"
 @include "core/variable_context.awk"
 
-function evaluate_include(token_id, depth,    file_path, condition, metadata, file_content, line, text_token_id, scripts_dir, temp_output, cmd, processed_content, var_name, templates_dir, full_path, env_vars_str, var_value) {
+function evaluate_include(token_id, depth,    file_path, condition, metadata, file_content, line, text_token_id, scripts_dir, temp_output, cmd, processed_content, var_name, templates_dir, full_path, var_value, env_file, file_path_escaped, engine_file_escaped, scripts_dir_escaped, temp_output_escaped) {
     if (depth == "") depth = 0
     
     if (depth > 10) {
@@ -65,32 +65,35 @@ function evaluate_include(token_id, depth,    file_path, condition, metadata, fi
         # Use PID and timestamp for unique temp file name to avoid collisions in parallel builds
         temp_output = "/tmp/include_" PROCINFO["pid"] "_" NR "_" depth "_" rand() "_" systime() ".out"
         
-        env_vars_str = ""
+        # Write environment variables to temporary file to avoid mawk sprintf buffer overflow (8192 bytes)
+        # This is more reliable than passing huge env_vars_str through command line
+        env_file = "/tmp/include_env_" PROCINFO["pid"] "_" NR "_" depth "_" rand() "_" systime() ".sh"
+        
         export_context_to_environ()
         
+        # Write all variables to env file
         for (var_name in ENVIRON) {
             # Only export template-related variables, skip system variables
-            # This avoids command line length issues and quote escaping problems
             if (var_name !~ /^(AWKPATH|SCRIPTS_DIR|TEMPLATES_DIR|DAP_TPL_ENGINE_PATH|NR|NF|FILENAME|FNR|FS|RS|ORS|OFMT|CONVFMT|PATH|HOME|USER|SHELL|TERM|LANG|PWD|OLDPWD|SHLVL|LS_COLORS|DISPLAY|XAUTHORITY|XDG_|DBUS_|GNOME_|GTK_|QT_|LD_|VSCODE_|CURSOR_|SSH_|GPG_|WAYLAND_|SESSION_|DESKTOP_|GDM_|IM_|GIO_|GSETTINGS_|MEMORY_|CHROME_|SYSTEMD_|INVOCATION_|MANAGERPID|APPIMAGE|APPDIR|ARGV0|AWKLIBPATH|PERLLIB|COMPOSER_|OWD|JOURNAL_|ORIGINAL_|NO_COLOR|FORCE_COLOR)/) {
                 var_value = ENVIRON[var_name]
-                # Escape single quotes for shell command
+                # Escape single quotes for shell: ' becomes '\''
                 gsub(/'/, "'\\''", var_value)
-                env_vars_str = env_vars_str " " var_name "='" var_value "'"
+                print "export " var_name "='" var_value "'" > env_file
             }
         }
         
         if (scripts_dir != "") {
-            # Escape single quotes in path
             scripts_dir_escaped = scripts_dir
             gsub(/'/, "'\\''", scripts_dir_escaped)
-            env_vars_str = env_vars_str " SCRIPTS_DIR='" scripts_dir_escaped "'"
+            print "export SCRIPTS_DIR='" scripts_dir_escaped "'" > env_file
         }
         if (templates_dir != "") {
-            # Escape single quotes in path
             templates_dir_escaped = templates_dir
             gsub(/'/, "'\\''", templates_dir_escaped)
-            env_vars_str = env_vars_str " TEMPLATES_DIR='" templates_dir_escaped "'"
+            print "export TEMPLATES_DIR='" templates_dir_escaped "'" > env_file
         }
+        
+        close(env_file)
         
         # Use compiled engine from environment variable (set by dap_tpl.sh)
         # Fallback to PID-based path for backward compatibility
@@ -109,13 +112,25 @@ function evaluate_include(token_id, depth,    file_path, condition, metadata, fi
         close(compiled_engine)
         engine_file = compiled_engine
         
-        # Build command with proper quoting
-        # CRITICAL: Pass DAP_TPL_ENGINE_PATH to child process so it can use the same engine
-        # Note: env_vars_str already includes leading space
-        # Note: No `cd` needed - file_path is already resolved to absolute path if from TEMPLATES_DIR
-        cmd = sprintf("AWKPATH='%s' DAP_TPL_ENGINE_PATH='%s'%s mawk -f '%s' '%s' > '%s' 2>&1", scripts_dir, engine_file, env_vars_str, engine_file, file_path, temp_output)
+        # Build command using env file to avoid sprintf buffer overflow
+        # Source env file, then run mawk with engine
+        # Note: No need for long sprintf - just source the env file
+        file_path_escaped = file_path
+        gsub(/'/, "'\\''", file_path_escaped)
+        engine_file_escaped = engine_file
+        gsub(/'/, "'\\''", engine_file_escaped)
+        scripts_dir_escaped = scripts_dir
+        gsub(/'/, "'\\''", scripts_dir_escaped)
+        temp_output_escaped = temp_output
+        gsub(/'/, "'\\''", temp_output_escaped)
+        
+        # Short command that sources env file
+        cmd = "(. '" env_file "' && AWKPATH='" scripts_dir_escaped "' DAP_TPL_ENGINE_PATH='" engine_file_escaped "' mawk -f '" engine_file_escaped "' '" file_path_escaped "') > '" temp_output_escaped "' 2>&1"
         
         rc = system(cmd)
+        
+        # Clean up env file immediately
+        system("rm -f '" env_file "'")
         
         processed_content = ""
         while ((getline line < temp_output) > 0) {
@@ -126,7 +141,7 @@ function evaluate_include(token_id, depth,    file_path, condition, metadata, fi
         }
         close(temp_output)
         
-        system("rm -f \"" temp_output "\"")
+        system("rm -f '" temp_output "'")
         
         delete metadata
         text_token_id = create_token("text", processed_content, metadata)
