@@ -81,9 +81,16 @@ replace_template_placeholders() {
     export DAP_TPL_ENGINE_PATH="$ENGINE"
     
     if [ -n "$output_file" ]; then
-        DEBUG_ENABLED=0 "$AWK_CMD" -f "$ENGINE" "$template_file" > "$output_file" 2>&1
+        # Run AWK and redirect stderr to /dev/null to avoid polluting output files
+        # If AWK fails, the script will return non-zero exit code
+        DEBUG_ENABLED=0 "$AWK_CMD" -f "$ENGINE" "$template_file" > "$output_file" 2>&2
+        local exit_code=$?
+        if [ $exit_code -ne 0 ]; then
+            echo "ERROR: Template processing failed for $template_file" >&2
+            return $exit_code
+        fi
     else
-        DEBUG_ENABLED=0 "$AWK_CMD" -f "$ENGINE" "$template_file" 2>&1
+        DEBUG_ENABLED=0 "$AWK_CMD" -f "$ENGINE" "$template_file" 2>&2
     fi
 }
 
