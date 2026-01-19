@@ -65,6 +65,8 @@ run_awk_test "$TEST_DIR/comparison/test_comparison_parser.awk"
 echo ""
 echo "Testing special operators..."
 run_awk_test "$TEST_DIR/special/test_contains_parser.awk"
+run_awk_test "$TEST_DIR/special/test_not_contains_parser.awk"
+run_awk_test "$TEST_DIR/special/test_not_contains_evaluator.awk"
 run_awk_test "$TEST_DIR/special/test_matches_parser.awk"
 
 echo ""
