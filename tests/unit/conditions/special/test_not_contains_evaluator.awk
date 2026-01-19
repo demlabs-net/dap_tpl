@@ -1,6 +1,8 @@
 # Unit tests for not_contains operator evaluator
 
 @include "core/marker_parser.awk"
+@include "core/variable_context.awk"
+@include "core/variable_functions.awk"
 @include "core/condition_parser.awk"
 @include "core/condition_evaluator.awk"
 
