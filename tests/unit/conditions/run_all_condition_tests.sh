@@ -27,15 +27,28 @@ run_awk_test() {
     
     echo "Running $test_name..."
     
-    if awk -f "$test_file" > /dev/null 2>&1; then
+    # Preprocess the test file to expand @include directives
+    local preprocessed="/tmp/dap_tpl_condition_test_$$.awk"
+    if ! AWKPATH="${DAP_TPL_ROOT}" "${DAP_TPL_ROOT}/utils/awk_include_preprocessor.sh" "$test_file" "${DAP_TPL_ROOT}" > "$preprocessed" 2>/dev/null; then
+        echo -e "${RED}✗${NC} $test_name failed (preprocessing)"
+        ((FAILED_TESTS++))
+        rm -f "$preprocessed"
+        ((TOTAL_TESTS++))
+        return 1
+    fi
+    
+    # Run preprocessed test
+    if mawk -f "$preprocessed" > /dev/null 2>&1; then
         echo -e "${GREEN}✓${NC} $test_name passed"
         ((PASSED_TESTS++))
+        rm -f "$preprocessed"
     else
         echo -e "${RED}✗${NC} $test_name failed"
         ((FAILED_TESTS++))
         # Run again to show errors
         echo "Errors:"
-        awk -f "$test_file" || true
+        mawk -f "$preprocessed" || true
+        rm -f "$preprocessed"
     fi
     ((TOTAL_TESTS++))
 }
@@ -65,6 +78,8 @@ run_awk_test "$TEST_DIR/comparison/test_comparison_parser.awk"
 echo ""
 echo "Testing special operators..."
 run_awk_test "$TEST_DIR/special/test_contains_parser.awk"
+run_awk_test "$TEST_DIR/special/test_not_contains_parser.awk"
+run_awk_test "$TEST_DIR/special/test_not_contains_evaluator.awk"
 run_awk_test "$TEST_DIR/special/test_matches_parser.awk"
 
 echo ""

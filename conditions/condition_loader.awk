@@ -24,6 +24,8 @@
 # Include special operators
 @include "conditions/special/contains/parser.awk"
 @include "conditions/special/contains/evaluator.awk"
+@include "conditions/special/not_contains/parser.awk"
+@include "conditions/special/not_contains/evaluator.awk"
 @include "conditions/special/in/parser.awk"
 @include "conditions/special/in/evaluator.awk"
 @include "conditions/special/matches/parser.awk"

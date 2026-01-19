@@ -1,6 +1,8 @@
 # Unit tests for logical AND parser
 
 @include "core/marker_parser.awk"
+@include "core/variable_context.awk"
+@include "core/variable_functions.awk"
 @include "core/condition_parser.awk"
 
 BEGIN {
@@ -22,12 +24,12 @@ function test(name, condition) {
 
 function test_parse_and_basic() {
     result = parse_condition("VAR1 && VAR2")
-    test("AND: basic parse starts with AND", result ~ /^AND\|/)
+    test("AND: basic parse starts with AND", result ~ /^AND@@/)
 }
 
 function test_parse_and_with_spaces() {
     result = parse_condition("VAR1   &&   VAR2")
-    test("AND: parse with multiple spaces", result ~ /^AND\|/)
+    test("AND: parse with multiple spaces", result ~ /^AND@@/)
 }
 
 function test_parse_and_nested() {

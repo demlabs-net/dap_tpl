@@ -57,6 +57,9 @@ function parse_condition(condition_expr,    trimmed, result) {
     }
     
     # Check for special operators
+    if (match(trimmed, /[ \t]+not_contains[ \t]+/)) {
+        return parse_not_contains(trimmed)
+    }
     if (match(trimmed, /[ \t]+contains[ \t]+/)) {
         return parse_contains(trimmed)
     }
@@ -128,6 +131,9 @@ function evaluate_parsed_condition(parsed_cond,    parts, op, i, delimiter) {
             }
     
     # Special operators
+    if (op == "not_contains") {
+        return evaluate_not_contains(parts)
+    }
     if (op == "contains") {
         return evaluate_contains(parts)
     }
@@ -140,7 +146,7 @@ function evaluate_parsed_condition(parsed_cond,    parts, op, i, delimiter) {
     
     # Simple variable check - check if this is a simple variable
     # Format: VAR|| (no operator, just variable expression)
-    if (parts[2] == "" && parts[3] == "" && op != "!=" && op != "==" && op != ">" && op != ">=" && op != "<" && op != "<=" && op != "contains" && op != "in" && op != "matches") {
+    if (parts[2] == "" && parts[3] == "" && op != "!=" && op != "==" && op != ">" && op != ">=" && op != "<" && op != "<=" && op != "contains" && op != "not_contains" && op != "in" && op != "matches") {
         return evaluate_simple_var(parts)
     }
     

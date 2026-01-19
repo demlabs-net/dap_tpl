@@ -126,6 +126,30 @@ function test_contains() {
     test("Integration: TEXT contains 'foo' (false)", result == 0)
 }
 
+function test_not_contains() {
+    clear_contexts()
+    push_context()
+    set_var("TEXT", "hello world")
+    
+    parsed = parse_condition("TEXT not_contains 'foo'")
+    result = evaluate_parsed_condition(parsed)
+    test("Integration: TEXT not_contains 'foo' (true)", result == 1)
+    
+    parsed = parse_condition("TEXT not_contains 'world'")
+    result = evaluate_parsed_condition(parsed)
+    test("Integration: TEXT not_contains 'world' (false)", result == 0)
+    
+    # Test with function names (real use case)
+    set_var("WRAPPER_FUNCTIONS", "func1\nfunc2\nfunc3")
+    parsed = parse_condition("WRAPPER_FUNCTIONS not_contains 'func4'")
+    result = evaluate_parsed_condition(parsed)
+    test("Integration: wrapper list not_contains new func (true)", result == 1)
+    
+    parsed = parse_condition("WRAPPER_FUNCTIONS not_contains 'func2'")
+    result = evaluate_parsed_condition(parsed)
+    test("Integration: wrapper list not_contains existing func (false)", result == 0)
+}
+
 function test_matches() {
     clear_contexts()
     push_context()
@@ -183,6 +207,7 @@ BEGIN {
     test_comparison_ne()
     test_comparison_gt()
     test_contains()
+    test_not_contains()
     test_matches()
     test_complex_expression()
     test_simple_variable()
