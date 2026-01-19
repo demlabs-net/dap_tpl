@@ -81,9 +81,13 @@ replace_template_placeholders() {
     export DAP_TPL_ENGINE_PATH="$ENGINE"
     
     if [ -n "$output_file" ]; then
-        DEBUG_ENABLED=0 "$AWK_CMD" -f "$ENGINE" "$template_file" > "$output_file" 2>&1
+        # Run AWK and keep stderr separate from stdout
+        # This prevents AWK errors/warnings from polluting output files
+        # Note: We don't check exit code because AWK may return non-zero on warnings
+        # but still produce valid output
+        DEBUG_ENABLED=0 "$AWK_CMD" -f "$ENGINE" "$template_file" > "$output_file" 2>&2
     else
-        DEBUG_ENABLED=0 "$AWK_CMD" -f "$ENGINE" "$template_file" 2>&1
+        DEBUG_ENABLED=0 "$AWK_CMD" -f "$ENGINE" "$template_file" 2>&2
     fi
 }
 
