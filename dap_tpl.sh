@@ -51,6 +51,11 @@ replace_template_placeholders() {
         fi
         
         case "$var_arg" in
+            --*)
+                # Skip flags (like --extensions-dir) and their values
+                # Next argument will be the value, skip it too in next iteration
+                continue
+                ;;
             *=*)
                 var_name="${var_arg%%=*}"
                 var_val="${var_arg#*=}"
