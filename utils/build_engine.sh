@@ -12,6 +12,9 @@ MULTIDIM_FOR_PROCESSOR="${SCRIPT_DIR}/multidim_for_preprocessor.sh"
 NORMALIZE_CREATE_TOKEN="${SCRIPT_DIR}/normalize_create_token.sh"
 POSIX_COMPAT_PROCESSOR="${SCRIPT_DIR}/posix_compat_preprocessor.sh"
 
+# Clean up old temporary files to avoid stale cache issues
+rm -f /tmp/dap_tpl_simple_base.awk /tmp/dap_tpl_engine*.awk
+
 echo "Step 1: Creating engine template with @include directives..."
 
 # Use template and add construct definitions
