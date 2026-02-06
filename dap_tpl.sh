@@ -3,15 +3,22 @@
 
 set -e
 
-# Detect AWK implementation
+# Detect AWK implementation with systime() support
+# systime() is required but it's a gawk extension (not in POSIX awk or mawk)
 detect_awk() {
-    if command -v mawk >/dev/null 2>&1; then
-        echo "mawk"
-    elif command -v awk >/dev/null 2>&1; then
-        echo "awk"
-    else
-        echo "awk"
-    fi
+    local awk_cmd
+    # Try each AWK in order of preference
+    for awk_cmd in gawk mawk awk; do
+        if command -v "$awk_cmd" >/dev/null 2>&1; then
+            # Test if this AWK supports systime()
+            if "$awk_cmd" 'BEGIN { print systime() }' >/dev/null 2>&1; then
+                echo "$awk_cmd"
+                return 0
+            fi
+        fi
+    done
+    # Fallback (will likely fail, but CMake check should catch this)
+    echo "awk"
 }
 
 AWK_CMD=$(detect_awk)
@@ -86,9 +93,13 @@ replace_template_placeholders() {
     export DAP_TPL_ENGINE_PATH="$ENGINE"
     
     if [ -n "$output_file" ]; then
-        DEBUG_ENABLED=0 "$AWK_CMD" -f "$ENGINE" "$template_file" > "$output_file" 2>&1
+        # Run AWK and keep stderr separate from stdout
+        # This prevents AWK errors/warnings from polluting output files
+        # Note: We don't check exit code because AWK may return non-zero on warnings
+        # but still produce valid output
+        DEBUG_ENABLED=0 "$AWK_CMD" -f "$ENGINE" "$template_file" > "$output_file" 2>&2
     else
-        DEBUG_ENABLED=0 "$AWK_CMD" -f "$ENGINE" "$template_file" 2>&1
+        DEBUG_ENABLED=0 "$AWK_CMD" -f "$ENGINE" "$template_file" 2>&2
     fi
 }
 
