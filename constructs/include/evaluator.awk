@@ -125,7 +125,9 @@ function evaluate_include(token_id, depth,    file_path, condition, metadata, fi
         gsub(/'/, "'\\''", temp_output_escaped)
         
         # Short command that sources env file
-        cmd = "(. '" env_file "' && AWKPATH='" scripts_dir_escaped "' DAP_TPL_ENGINE_PATH='" engine_file_escaped "' mawk -f '" engine_file_escaped "' '" file_path_escaped "') > '" temp_output_escaped "' 2>&1"
+        # Use AWK_CMD from environment (any POSIX awk works with compatibility layer)
+        awk_cmd = (ENVIRON["AWK_CMD"] != "") ? ENVIRON["AWK_CMD"] : "awk"
+        cmd = "(. '" env_file "' && AWKPATH='" scripts_dir_escaped "' DAP_TPL_ENGINE_PATH='" engine_file_escaped "' " awk_cmd " -f '" engine_file_escaped "' '" file_path_escaped "') > '" temp_output_escaped "' 2>&1"
         
         rc = system(cmd)
         

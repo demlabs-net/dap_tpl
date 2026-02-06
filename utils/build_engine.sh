@@ -10,6 +10,7 @@ PREPROCESSOR="${SCRIPT_DIR}/awk_include_preprocessor.sh"
 INDIRECT_PROCESSOR="${SCRIPT_DIR}/indirect_call_processor.sh"
 MULTIDIM_FOR_PROCESSOR="${SCRIPT_DIR}/multidim_for_preprocessor.sh"
 NORMALIZE_CREATE_TOKEN="${SCRIPT_DIR}/normalize_create_token.sh"
+POSIX_COMPAT_PROCESSOR="${SCRIPT_DIR}/posix_compat_preprocessor.sh"
 
 echo "Step 1: Creating engine template with @include directives..."
 
@@ -135,15 +136,22 @@ ENGINE_NORMALIZED="/tmp/dap_tpl_engine_normalized.awk"
 
 echo "  Normalized: $ENGINE_NORMALIZED"
 
-# Step 6: Final engine
+# Step 6: Apply POSIX compatibility layer
+echo "Step 6: Applying POSIX compatibility layer..."
+ENGINE_POSIX_COMPAT="/tmp/dap_tpl_engine_posix_compat.awk"
+"$POSIX_COMPAT_PROCESSOR" "$ENGINE_NORMALIZED" "$ENGINE_POSIX_COMPAT"
+
+echo "  POSIX compatible: $ENGINE_POSIX_COMPAT"
+
+# Step 7: Final engine
 ENGINE_FINAL="/tmp/dap_tpl_engine.awk"
-cp "$ENGINE_NORMALIZED" "$ENGINE_FINAL"
+cp "$ENGINE_POSIX_COMPAT" "$ENGINE_FINAL"
 
 echo "  Engine: $ENGINE_FINAL"
 
-# Step 7: Validate
+# Step 8: Validate
 if command -v mawk >/dev/null 2>&1; then
-    echo "Step 7: Validating syntax with mawk..."
+    echo "Step 8: Validating syntax with mawk..."
     if mawk -f "$ENGINE_FINAL" /dev/null 2>/dev/null; then
         echo "  ✓ Syntax validation passed!"
     else

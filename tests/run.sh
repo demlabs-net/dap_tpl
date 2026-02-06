@@ -1,4 +1,10 @@
 #!/bin/bash
+
+# Detect available AWK
+AWK_CMD="${AWK_CMD:-$(command -v gawk || command -v mawk || command -v awk)}"
+export DAP_AWK_PID="$$"
+export DAP_AWK_SYSTIME="$(date +%s)"
+
 # Universal test runner for dap_tpl
 # Usage:
 #   ./run.sh all                    - Run all tests
@@ -63,7 +69,7 @@ run_awk_test() {
     
     # Run preprocessed test
     local result
-    if result=$(cd "$DAP_TPL_DIR" && mawk -f "$preprocessed" <<< "" 2>&1); then
+    if result=$(cd "$DAP_TPL_DIR" && "$AWK_CMD" -f "$preprocessed" <<< "" 2>&1); then
         rm -f "$preprocessed"
         if echo "$result" | grep -q "^PASS$"; then
             echo "PASS"

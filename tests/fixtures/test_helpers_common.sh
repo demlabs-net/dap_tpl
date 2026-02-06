@@ -1,6 +1,19 @@
 #!/bin/bash
 # Common test helpers - for running AWK tests with @include preprocessing
 
+# Detect available AWK (prefer gawk, then mawk, then any awk)
+detect_awk() {
+    for awk_cmd in gawk mawk nawk awk; do
+        if command -v "$awk_cmd" >/dev/null 2>&1; then
+            echo "$awk_cmd"
+            return 0
+        fi
+    done
+    echo "awk"
+}
+
+AWK_CMD="${AWK_CMD:-$(detect_awk)}"
+
 # Run AWK test file with full preprocessing (includes, indirect calls, etc)
 run_preprocessed_awk_test() {
     local test_file="$1"
@@ -41,16 +54,29 @@ run_preprocessed_awk_test() {
     fi
     rm -f "$temp3"
     
-    # Run preprocessed test
+    # Step 5: Apply POSIX compatibility layer
+    local temp5="/tmp/dap_tpl_test_$$_5.awk"
+    if ! "${dap_tpl_dir}/utils/posix_compat_preprocessor.sh" "$temp4" "$temp5" 2>/dev/null; then
+        echo "ERROR: Failed to apply POSIX compatibility layer" >&2
+        rm -f "$temp4" "$temp5"
+        return 2
+    fi
+    rm -f "$temp4"
+    
+    # Run preprocessed test with detected AWK
     local result
     local exit_code=0
-    if result=$(cd "$dap_tpl_dir" && mawk -f "$temp4" <<< "" 2>&1); then
+    # Export POSIX compat vars for the test
+    export DAP_AWK_PID="$$"
+    export DAP_AWK_SYSTIME="$(date +%s)"
+    
+    if result=$(cd "$dap_tpl_dir" && "$AWK_CMD" -f "$temp5" <<< "" 2>&1); then
         exit_code=0
     else
         exit_code=$?
     fi
     
-    rm -f "$temp4"
+    rm -f "$temp5"
     echo "$result"
     return $exit_code
 }

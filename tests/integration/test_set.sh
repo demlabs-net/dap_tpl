@@ -1,4 +1,10 @@
 #!/bin/bash
+
+# Detect available AWK
+AWK_CMD="${AWK_CMD:-$(command -v gawk || command -v mawk || command -v awk)}"
+export DAP_AWK_PID="$$"
+export DAP_AWK_SYSTIME="$(date +%s)"
+
 # Integration tests for {{#set}} construct
 # Tests that {{#set}} directives don't render in output and work correctly in various contexts
 
@@ -55,7 +61,7 @@ test_set() {
     local temp_stderr="/tmp/test_set_stderr_$$.txt"
     local actual_output actual_stderr exit_code
     
-    (cd "$DAP_TPL_DIR" && DEBUG_ENABLED=0 mawk -f "$COMPILED_ENGINE" "$template_file" > "$temp_stdout" 2>"$temp_stderr")
+    (cd "$DAP_TPL_DIR" && DEBUG_ENABLED=0 "$AWK_CMD" -f "$COMPILED_ENGINE" "$template_file" > "$temp_stdout" 2>"$temp_stderr")
     exit_code=$?
     actual_output=$(cat "$temp_stdout")
     actual_stderr=$(cat "$temp_stderr")

@@ -1,6 +1,23 @@
 #!/bin/bash
 # Test helpers for AWK engine
 
+# Detect available AWK (prefer gawk, then mawk, then any awk)
+detect_awk() {
+    for awk_cmd in gawk mawk nawk awk; do
+        if command -v "$awk_cmd" >/dev/null 2>&1; then
+            echo "$awk_cmd"
+            return 0
+        fi
+    done
+    echo "awk"
+}
+
+AWK_CMD="${AWK_CMD:-$(detect_awk)}"
+
+# Export POSIX compatibility variables
+export DAP_AWK_PID="$$"
+export DAP_AWK_SYSTIME="$(date +%s)"
+
 # Build engine if needed
 ensure_engine() {
     local engine_path="/tmp/dap_tpl_engine.awk"
@@ -22,7 +39,7 @@ run_awk_test() {
     
     local engine=$(ensure_engine)
     
-    (cd "$DAP_TPL_DIR" && DEBUG_ENABLED=0 mawk -f "$test_file" <<< "" > "$temp_stdout" 2>"$temp_stderr") || exit_code=$?
+    (cd "$DAP_TPL_DIR" && DEBUG_ENABLED=0 "$AWK_CMD" -f "$test_file" <<< "" > "$temp_stdout" 2>"$temp_stderr") || exit_code=$?
     
     cat "$temp_stdout"
     cat "$temp_stderr" >&2
@@ -36,5 +53,5 @@ process_template() {
     local template="$1"
     local engine=$(ensure_engine)
     
-    echo "$template" | mawk -f "$engine" 2>&1
+    echo "$template" | "$AWK_CMD" -f "$engine" 2>&1
 }

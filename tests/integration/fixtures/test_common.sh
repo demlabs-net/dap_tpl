@@ -1,6 +1,23 @@
 #!/bin/bash
 # Common test fixtures and helper functions for integration tests
 
+# Detect available AWK (prefer gawk, then mawk, then any awk)
+detect_awk() {
+    for awk_cmd in gawk mawk nawk awk; do
+        if command -v "$awk_cmd" >/dev/null 2>&1; then
+            echo "$awk_cmd"
+            return 0
+        fi
+    done
+    echo "awk"
+}
+
+AWK_CMD="${AWK_CMD:-$(detect_awk)}"
+
+# Export POSIX compatibility variables
+export DAP_AWK_PID="$$"
+export DAP_AWK_SYSTIME="$(date +%s)"
+
 # Initialize test environment
 # Sets up DAP_TPL_DIR, TEMPLATES_DIR, AWKPATH, and builds engine
 init_test_env() {
@@ -62,7 +79,7 @@ run_template() {
     eval "$temp_stderr_var=\"$temp_stderr\""
     
     local exit_code=0
-    (cd "$DAP_TPL_DIR" && DEBUG_ENABLED=0 mawk -f "$COMPILED_ENGINE" "$template_file" > "$temp_stdout" 2>"$temp_stderr") || exit_code=$?
+    (cd "$DAP_TPL_DIR" && DEBUG_ENABLED=0 "$AWK_CMD" -f "$COMPILED_ENGINE" "$template_file" > "$temp_stdout" 2>"$temp_stderr") || exit_code=$?
     
     local output=""
     local stderr_output=""

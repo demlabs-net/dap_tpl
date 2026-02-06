@@ -3,25 +3,28 @@
 
 set -e
 
-# Detect AWK implementation with systime() support
-# systime() is required but it's a gawk extension (not in POSIX awk or mawk)
+# Detect AWK implementation
+# With POSIX compatibility layer, any AWK works (gawk, mawk, nawk, awk)
+# Preference order: gawk (most features), mawk (fastest), then generic awk
 detect_awk() {
     local awk_cmd
-    # Try each AWK in order of preference
-    for awk_cmd in gawk mawk awk; do
+    for awk_cmd in gawk mawk nawk awk; do
         if command -v "$awk_cmd" >/dev/null 2>&1; then
-            # Test if this AWK supports systime()
-            if "$awk_cmd" 'BEGIN { print systime() }' >/dev/null 2>&1; then
-                echo "$awk_cmd"
-                return 0
-            fi
+            echo "$awk_cmd"
+            return 0
         fi
     done
-    # Fallback (will likely fail, but CMake check should catch this)
+    # Fallback - should always exist on Unix systems
     echo "awk"
 }
 
 AWK_CMD=$(detect_awk)
+export AWK_CMD  # Export for nested AWK scripts to use via ENVIRON["AWK_CMD"]
+
+# Export POSIX compatibility variables
+# These replace gawk-specific systime() and PROCINFO["pid"]
+export DAP_AWK_PID="$$"
+export DAP_AWK_SYSTIME="$(date +%s)"
 
 # Main function
 replace_template_placeholders() {

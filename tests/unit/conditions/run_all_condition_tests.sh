@@ -1,4 +1,10 @@
 #!/bin/bash
+
+# Detect available AWK
+AWK_CMD="${AWK_CMD:-$(command -v gawk || command -v mawk || command -v awk)}"
+export DAP_AWK_PID="$$"
+export DAP_AWK_SYSTIME="$(date +%s)"
+
 # Test runner for condition system tests
 # Runs both unit tests and integration tests
 
@@ -38,7 +44,7 @@ run_awk_test() {
     fi
     
     # Run preprocessed test
-    if mawk -f "$preprocessed" > /dev/null 2>&1; then
+    if "$AWK_CMD" -f "$preprocessed" > /dev/null 2>&1; then
         echo -e "${GREEN}✓${NC} $test_name passed"
         ((PASSED_TESTS++))
         rm -f "$preprocessed"
@@ -47,7 +53,7 @@ run_awk_test() {
         ((FAILED_TESTS++))
         # Run again to show errors
         echo "Errors:"
-        mawk -f "$preprocessed" || true
+        "$AWK_CMD" -f "$preprocessed" || true
         rm -f "$preprocessed"
     fi
     ((TOTAL_TESTS++))
