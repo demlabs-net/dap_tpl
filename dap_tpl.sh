@@ -22,6 +22,7 @@ detect_awk() {
 }
 
 AWK_CMD=$(detect_awk)
+export AWK_CMD  # Export for nested AWK scripts to use via ENVIRON["AWK_CMD"]
 
 # Main function
 replace_template_placeholders() {

@@ -119,32 +119,36 @@ function execute_awk_script_with_input(script_code, input_file,    script_file, 
         close(preprocessed_script)
         
         # Use preprocessed script
+        # Use AWK_CMD from environment, fallback to gawk
+        awk_cmd = (ENVIRON["AWK_CMD"] != "") ? ENVIRON["AWK_CMD"] : "gawk"
         if (env_vars != "") {
             if (input_file != "") {
-                cmd = "env" env_vars " mawk -f " preprocessed_script " " input_file " 2>&1"
+                cmd = "env" env_vars " " awk_cmd " -f " preprocessed_script " " input_file " 2>&1"
             } else {
-                cmd = "env" env_vars " mawk -f " preprocessed_script " 2>&1"
+                cmd = "env" env_vars " " awk_cmd " -f " preprocessed_script " 2>&1"
             }
         } else {
             if (input_file != "") {
-                cmd = "mawk -f " preprocessed_script " " input_file " 2>&1"
+                cmd = awk_cmd " -f " preprocessed_script " " input_file " 2>&1"
             } else {
-                cmd = "mawk -f " preprocessed_script " 2>&1"
+                cmd = awk_cmd " -f " preprocessed_script " 2>&1"
             }
         }
     } else {
         # Regular awk (no @include)
+        # Use AWK_CMD from environment, fallback to gawk
+        awk_cmd = (ENVIRON["AWK_CMD"] != "") ? ENVIRON["AWK_CMD"] : "gawk"
         if (env_vars != "") {
             if (input_file != "") {
-                cmd = "env" env_vars " mawk -f " script_file " " input_file " 2>&1"
+                cmd = "env" env_vars " " awk_cmd " -f " script_file " " input_file " 2>&1"
             } else {
-                cmd = "env" env_vars " mawk -f " script_file " 2>&1"
+                cmd = "env" env_vars " " awk_cmd " -f " script_file " 2>&1"
             }
         } else {
             if (input_file != "") {
-                cmd = "mawk -f " script_file " " input_file " 2>&1"
+                cmd = awk_cmd " -f " script_file " " input_file " 2>&1"
             } else {
-                cmd = "mawk -f " script_file " 2>&1"
+                cmd = awk_cmd " -f " script_file " 2>&1"
             }
         }
     }
