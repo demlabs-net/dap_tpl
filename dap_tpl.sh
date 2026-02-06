@@ -3,15 +3,22 @@
 
 set -e
 
-# Detect AWK implementation
+# Detect AWK implementation with systime() support
+# systime() is required but it's a gawk extension (not in POSIX awk or mawk)
 detect_awk() {
-    if command -v mawk >/dev/null 2>&1; then
-        echo "mawk"
-    elif command -v awk >/dev/null 2>&1; then
-        echo "awk"
-    else
-        echo "awk"
-    fi
+    local awk_cmd
+    # Try each AWK in order of preference
+    for awk_cmd in gawk mawk awk; do
+        if command -v "$awk_cmd" >/dev/null 2>&1; then
+            # Test if this AWK supports systime()
+            if "$awk_cmd" 'BEGIN { print systime() }' >/dev/null 2>&1; then
+                echo "$awk_cmd"
+                return 0
+            fi
+        fi
+    done
+    # Fallback (will likely fail, but CMake check should catch this)
+    echo "awk"
 }
 
 AWK_CMD=$(detect_awk)
