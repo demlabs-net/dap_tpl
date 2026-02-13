@@ -12,20 +12,24 @@ MULTIDIM_FOR_PROCESSOR="${SCRIPT_DIR}/multidim_for_preprocessor.sh"
 NORMALIZE_CREATE_TOKEN="${SCRIPT_DIR}/normalize_create_token.sh"
 POSIX_COMPAT_PROCESSOR="${SCRIPT_DIR}/posix_compat_preprocessor.sh"
 
-# Clean up old temporary files to avoid stale cache issues
-rm -f /tmp/dap_tpl_simple_base.awk /tmp/dap_tpl_engine*.awk
+# Use unique temp directory to avoid race conditions in parallel builds
+TEMP_DIR="${DAP_TPL_TEMP_DIR:-/tmp/dap_tpl_$$}"
+mkdir -p "$TEMP_DIR"
+
+# Clean up old temporary files in our unique directory
+rm -f "$TEMP_DIR"/dap_tpl_simple_base.awk "$TEMP_DIR"/dap_tpl_engine*.awk
 
 echo "Step 1: Creating engine template with @include directives..."
 
 # Use template and add construct definitions
-ENGINE_WITH_INCLUDES="/tmp/dap_tpl_simple_base.awk"
+ENGINE_WITH_INCLUDES="$TEMP_DIR/dap_tpl_simple_base.awk"
 TEMPLATE="${SCRIPT_DIR}/engine_template.awk"
 
 # Copy template
 cp "$TEMPLATE" "$ENGINE_WITH_INCLUDES"
 
 # Add construct definitions before @CONSTRUCT_DEFINITIONS@ marker
-CONSTRUCTS_TEMP="/tmp/dap_tpl_constructs_$$.awk"
+CONSTRUCTS_TEMP="$TEMP_DIR/dap_tpl_constructs.awk"
 {
     for construct_dir in "$DAP_TPL_DIR/constructs"/*; do
         if [ -d "$construct_dir" ]; then
@@ -113,41 +117,41 @@ echo "  Created: $ENGINE_WITH_INCLUDES"
 
 # Step 2: Expand @include directives  
 echo "Step 2: Expanding @include directives..."
-ENGINE_EXPANDED="/tmp/dap_tpl_engine_expanded.awk"
+ENGINE_EXPANDED="$TEMP_DIR/dap_tpl_engine_expanded.awk"
 AWKPATH="${DAP_TPL_DIR}" "$PREPROCESSOR" "$ENGINE_WITH_INCLUDES" "${DAP_TPL_DIR}" > "$ENGINE_EXPANDED"
 
 echo "  Expanded: $ENGINE_EXPANDED ($(wc -l < "$ENGINE_EXPANDED") lines)"
 
 # Step 3: Process multidimensional for loops
 echo "Step 3: Processing multidimensional for loops..."
-ENGINE_MULTIDIM="/tmp/dap_tpl_engine_multidim.awk"
+ENGINE_MULTIDIM="$TEMP_DIR/dap_tpl_engine_multidim.awk"
 "$MULTIDIM_FOR_PROCESSOR" "$ENGINE_EXPANDED" "$ENGINE_MULTIDIM"
 
 echo "  Processed: $ENGINE_MULTIDIM"
 
 # Step 4: Process indirect function calls
 echo "Step 4: Processing indirect function calls..."
-ENGINE_NO_INDIRECT="/tmp/dap_tpl_engine_no_indirect.awk"
+ENGINE_NO_INDIRECT="$TEMP_DIR/dap_tpl_engine_no_indirect.awk"
 "$INDIRECT_PROCESSOR" "$ENGINE_MULTIDIM" "$ENGINE_NO_INDIRECT" "$DAP_TPL_DIR"
 
 echo "  Processed: $ENGINE_NO_INDIRECT"
 
 # Step 5: Normalize create_token calls
 echo "Step 5: Normalizing create_token calls..."
-ENGINE_NORMALIZED="/tmp/dap_tpl_engine_normalized.awk"
+ENGINE_NORMALIZED="$TEMP_DIR/dap_tpl_engine_normalized.awk"
 "$NORMALIZE_CREATE_TOKEN" "$ENGINE_NO_INDIRECT" "$ENGINE_NORMALIZED"
 
 echo "  Normalized: $ENGINE_NORMALIZED"
 
 # Step 6: Apply POSIX compatibility layer
 echo "Step 6: Applying POSIX compatibility layer..."
-ENGINE_POSIX_COMPAT="/tmp/dap_tpl_engine_posix_compat.awk"
+ENGINE_POSIX_COMPAT="$TEMP_DIR/dap_tpl_engine_posix_compat.awk"
 "$POSIX_COMPAT_PROCESSOR" "$ENGINE_NORMALIZED" "$ENGINE_POSIX_COMPAT"
 
 echo "  POSIX compatible: $ENGINE_POSIX_COMPAT"
 
 # Step 7: Final engine
-ENGINE_FINAL="/tmp/dap_tpl_engine.awk"
+ENGINE_FINAL="$TEMP_DIR/dap_tpl_engine.awk"
 cp "$ENGINE_POSIX_COMPAT" "$ENGINE_FINAL"
 
 echo "  Engine: $ENGINE_FINAL"

@@ -86,9 +86,11 @@ replace_template_placeholders() {
         esac
     done
     
-    # Build engine
+    # Build engine with unique temp directory to avoid race conditions
+    TEMP_DIR="${DAP_TPL_TEMP_DIR:-/tmp/dap_tpl_$$}"
+    export DAP_TPL_TEMP_DIR="$TEMP_DIR"
     "${SCRIPT_DIR}/utils/build_engine.sh" >/dev/null 2>&1
-    ENGINE="/tmp/dap_tpl_engine.awk"
+    ENGINE="$TEMP_DIR/dap_tpl_engine.awk"
     
     [ ! -f "$ENGINE" ] && echo "ERROR: Engine build failed" >&2 && return 1
     
