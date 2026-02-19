@@ -6,6 +6,7 @@ set -e
 INPUT_FILE="$1"
 OUTPUT_FILE="${2:-}"
 DAP_TPL_DIR="${3:-$(dirname "$INPUT_FILE")}"
+MOCKING_DIR="${4:-}"  # Optional mocking extensions directory
 
 [ ! -f "$INPUT_FILE" ] && echo "Error: File not found: $INPUT_FILE" >&2 && exit 1
 
@@ -26,6 +27,18 @@ awk -F'"' '{
     }
 }' > "$TMP_REGISTERED"
 
+# Scan for register_* calls in mocking extensions (if provided)
+if [ -n "$MOCKING_DIR" ] && [ -d "$MOCKING_DIR" ]; then
+    find "$MOCKING_DIR" -name "*.awk" -exec grep -h "register_" {} \; 2>/dev/null | \
+    awk -F'"' '{
+        if ($0 ~ /register_opening_pattern/) {
+            if (NF >= 6) print $6
+        } else {
+            if (NF >= 4) print $4
+        }
+    }' >> "$TMP_REGISTERED"
+fi
+
 # Scan for VAR_FUNC_DISPATCH registrations in core
 find "$DAP_TPL_DIR/core" -name "*.awk" -exec grep -h "VAR_FUNC_DISPATCH\[" {} \; 2>/dev/null | \
 awk -F'"' '{
@@ -40,7 +53,11 @@ mv "$TMP_REGISTERED.tmp" "$TMP_REGISTERED"
 echo "# Found $(wc -l < "$TMP_REGISTERED") registered functions" >&2
 
 # PASS 2: Extract ALL function definitions
-find "$DAP_TPL_DIR/constructs" "$DAP_TPL_DIR/core" -name "*.awk" -exec grep "^function " {} \; 2>/dev/null | \
+FIND_PATHS="$DAP_TPL_DIR/constructs $DAP_TPL_DIR/core"
+if [ -n "$MOCKING_DIR" ] && [ -d "$MOCKING_DIR" ]; then
+    FIND_PATHS="$FIND_PATHS $MOCKING_DIR"
+fi
+find $FIND_PATHS -name "*.awk" -exec grep "^function " {} \; 2>/dev/null | \
 awk '{
     line = $0
     sub(/^function[ \t]+/, "", line)

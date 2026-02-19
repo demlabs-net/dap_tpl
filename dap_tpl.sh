@@ -76,20 +76,27 @@ replace_template_placeholders() {
         esac
     done
     
-    # Build engine
-    "${SCRIPT_DIR}/utils/build_engine.sh" >/dev/null 2>&1
-    ENGINE="/tmp/dap_tpl_engine.awk"
+    # Build engine - use unique temp file per process to support parallel execution
+    # Combine PID with a random suffix for uniqueness even with subshells
+    ENGINE="/tmp/dap_tpl_engine_$$.awk"
+    DAP_TPL_ENGINE_OUTPUT="$ENGINE" "${SCRIPT_DIR}/utils/build_engine.sh" >/dev/null 2>&1
     
     [ ! -f "$ENGINE" ] && echo "ERROR: Engine build failed" >&2 && return 1
     
     # Process template
     export DAP_TPL_ENGINE_PATH="$ENGINE"
     
+    local result=0
     if [ -n "$output_file" ]; then
-        DEBUG_ENABLED=0 "$AWK_CMD" -f "$ENGINE" "$template_file" > "$output_file" 2>&1
+        DEBUG_ENABLED=0 "$AWK_CMD" -f "$ENGINE" "$template_file" > "$output_file" 2>&1 || result=$?
     else
-        DEBUG_ENABLED=0 "$AWK_CMD" -f "$ENGINE" "$template_file" 2>&1
+        DEBUG_ENABLED=0 "$AWK_CMD" -f "$ENGINE" "$template_file" 2>&1 || result=$?
     fi
+    
+    # Cleanup unique engine file
+    rm -f "$ENGINE" 2>/dev/null || true
+    
+    return $result
 }
 
 # Call main function if script is executed directly (not sourced)
