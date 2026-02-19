@@ -4,17 +4,27 @@
 set -e
 
 # Detect AWK implementation
+# With POSIX compatibility layer, any AWK works (gawk, mawk, nawk, awk)
+# Preference order: gawk (most features), mawk (fastest), then generic awk
 detect_awk() {
-    if command -v mawk >/dev/null 2>&1; then
-        echo "mawk"
-    elif command -v awk >/dev/null 2>&1; then
-        echo "awk"
-    else
-        echo "awk"
-    fi
+    local awk_cmd
+    for awk_cmd in gawk mawk nawk awk; do
+        if command -v "$awk_cmd" >/dev/null 2>&1; then
+            echo "$awk_cmd"
+            return 0
+        fi
+    done
+    # Fallback - should always exist on Unix systems
+    echo "awk"
 }
 
 AWK_CMD=$(detect_awk)
+export AWK_CMD  # Export for nested AWK scripts to use via ENVIRON["AWK_CMD"]
+
+# Export POSIX compatibility variables
+# These replace gawk-specific systime() and PROCINFO["pid"]
+export DAP_AWK_PID="$$"
+export DAP_AWK_SYSTIME="$(date +%s)"
 
 # Main function
 replace_template_placeholders() {
@@ -76,10 +86,11 @@ replace_template_placeholders() {
         esac
     done
     
-    # Build engine - use unique temp file per process to support parallel execution
-    # Combine PID with a random suffix for uniqueness even with subshells
-    ENGINE="/tmp/dap_tpl_engine_$$.awk"
-    DAP_TPL_ENGINE_OUTPUT="$ENGINE" "${SCRIPT_DIR}/utils/build_engine.sh" >/dev/null 2>&1
+    # Build engine with unique temp directory to avoid race conditions
+    TEMP_DIR="${DAP_TPL_TEMP_DIR:-/tmp/dap_tpl_$$}"
+    export DAP_TPL_TEMP_DIR="$TEMP_DIR"
+    "${SCRIPT_DIR}/utils/build_engine.sh" >/dev/null 2>&1
+    ENGINE="$TEMP_DIR/dap_tpl_engine.awk"
     
     [ ! -f "$ENGINE" ] && echo "ERROR: Engine build failed" >&2 && return 1
     
@@ -88,13 +99,14 @@ replace_template_placeholders() {
     
     local result=0
     if [ -n "$output_file" ]; then
-        DEBUG_ENABLED=0 "$AWK_CMD" -f "$ENGINE" "$template_file" > "$output_file" 2>&1 || result=$?
+        # Run AWK: stdout to file, stderr to terminal (no 2>&1 to avoid polluting output)
+        DEBUG_ENABLED=0 "$AWK_CMD" -f "$ENGINE" "$template_file" > "$output_file" || result=$?
     else
-        DEBUG_ENABLED=0 "$AWK_CMD" -f "$ENGINE" "$template_file" 2>&1 || result=$?
+        DEBUG_ENABLED=0 "$AWK_CMD" -f "$ENGINE" "$template_file" || result=$?
     fi
     
-    # Cleanup unique engine file
-    rm -f "$ENGINE" 2>/dev/null || true
+    # Cleanup unique temp dir (engine and any leftovers)
+    rm -rf "$TEMP_DIR" 2>/dev/null || true
     
     return $result
 }

@@ -130,10 +130,10 @@ function process_file(filepath, base_dir,    canonical, line, inc_path, resolved
     # IMPORTANT: use getline ONLY for reading content
     while ((getline line < canonical) > 0) {
         # Check for @include
-        if (match(line, /^[[:space:]]*@include[[:space:]]+/)) {
+        if (match(line, /^[ \t]*@include[ \t]+/)) {
             # Extract path
             inc_path = line
-            sub(/^[[:space:]]*@include[[:space:]]+/, "", inc_path)
+            sub(/^[ \t]*@include[ \t]+/, "", inc_path)
             
             # Resolve and process recursively
             resolved = resolve_file(inc_path, file_base)

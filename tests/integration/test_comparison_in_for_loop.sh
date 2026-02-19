@@ -1,4 +1,10 @@
 #!/bin/bash
+
+# Detect available AWK
+AWK_CMD="${AWK_CMD:-$(command -v gawk || command -v mawk || command -v awk)}"
+export DAP_AWK_PID="$$"
+export DAP_AWK_SYSTIME="$(date +%s)"
+
 # Integration test for comparison conditions inside for loops
 # This test reproduces the bug where 'type == \"void\"' always returns true
 
@@ -38,7 +44,7 @@ cat > "$TEST_TEMPLATE" << 'EOF'
 EOF
 
 export RETURN_TYPES="void int"
-OUTPUT=$(cd "$DAP_TPL_DIR" && mawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>/dev/null)
+OUTPUT=$(cd "$DAP_TPL_DIR" && "$AWK_CMD" -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>/dev/null)
 
 # Check that void goes to VOID branch
 if ! echo "$OUTPUT" | grep -q "VOID BRANCH: void"; then
@@ -78,7 +84,7 @@ echo "PASS: Comparison condition in for loop"
 # Test 2: Multiple types with void check
 echo "Test 2: Multiple types with void check"
 export RETURN_TYPES="void int char"
-OUTPUT2=$(cd "$DAP_TPL_DIR" && mawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>/dev/null)
+OUTPUT2=$(cd "$DAP_TPL_DIR" && "$AWK_CMD" -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>/dev/null)
 
 # Count VOID branches - should be exactly 1 (for void)
 # Count only lines containing "VOID BRANCH:" followed by a type name
@@ -124,7 +130,7 @@ cat > "$TEST_TEMPLATE3" << 'EOF'
 EOF
 
 export RETURN_TYPES="void int"
-OUTPUT3=$(cd "$DAP_TPL_DIR" && mawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE3" 2>/dev/null)
+OUTPUT3=$(cd "$DAP_TPL_DIR" && "$AWK_CMD" -f "$COMPILED_ENGINE" "$TEST_TEMPLATE3" 2>/dev/null)
 
 # Check that void macro calls VOID version (macros can span multiple lines with \)
 if ! echo "$OUTPUT3" | grep -A2 "_DAP_MOCK_WRAPPER_CUSTOM_SELECT_void" | grep -q "_DAP_MOCK_WRAPPER_CUSTOM_VOID"; then

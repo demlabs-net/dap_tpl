@@ -1,4 +1,10 @@
 #!/bin/bash
+
+# Detect available AWK
+AWK_CMD="${AWK_CMD:-$(command -v gawk || command -v mawk || command -v awk)}"
+export DAP_AWK_PID="$$"
+export DAP_AWK_SYSTIME="$(date +%s)"
+
 # Integration test: set with AWK sections
 # Tests that #set directives with AWK sections don't appear in final output
 # This reproduces the issue where #set directives remain in generated C code
@@ -37,7 +43,7 @@ echo "Using engine: ${ENGINE_PATH}"
 
 # Run template through engine with proper AWKPATH (check both stdout and stderr separately)
 (cd "${DAP_TPL_DIR}" && \
- env AWKPATH="${DAP_TPL_DIR}" DEBUG_ENABLED=0 mawk -f "${ENGINE_PATH}" "${TEST_TEMPLATE}" > "${TEST_OUTPUT}" 2>"${TEST_OUTPUT}.stderr") || {
+ env AWKPATH="${DAP_TPL_DIR}" DEBUG_ENABLED=0 "$AWK_CMD" -f "${ENGINE_PATH}" "${TEST_TEMPLATE}" > "${TEST_OUTPUT}" 2>"${TEST_OUTPUT}.stderr") || {
     echo "FAIL: Template processing failed"
     cat "${TEST_OUTPUT}"
     if [ -s "${TEST_OUTPUT}.stderr" ]; then

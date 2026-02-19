@@ -1,4 +1,10 @@
 #!/bin/bash
+
+# Detect available AWK
+AWK_CMD="${AWK_CMD:-$(command -v gawk || command -v mawk || command -v awk)}"
+export DAP_AWK_PID="$$"
+export DAP_AWK_SYSTIME="$(date +%s)"
+
 # Integration test for nested if conditions in for loop bug
 # This test reproduces the bug where {{#if type == 'void'}} always returns true
 # when used inside {{#for type in RETURN_TYPES}} with nested {{#if macro_name}}
@@ -43,7 +49,7 @@ EOF
 
 echo "Test 1: RETURN_TYPES='void int' - should have 1 VOID and 1 NON-VOID"
 export RETURN_TYPES="void int"
-OUTPUT=$(cd "$DAP_TPL_DIR" && mawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>/dev/null)
+OUTPUT=$(cd "$DAP_TPL_DIR" && "$AWK_CMD" -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>/dev/null)
 
 # Check that void goes to VOID branch
 if ! echo "$OUTPUT" | grep -q "VOID_BRANCH: void"; then
@@ -84,7 +90,7 @@ echo "PASS: Test 1 - void and int correctly routed"
 echo ""
 echo "Test 2: RETURN_TYPES='void int char' - should have 1 VOID and 2 NON-VOID"
 export RETURN_TYPES="void int char"
-OUTPUT2=$(cd "$DAP_TPL_DIR" && mawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>/dev/null)
+OUTPUT2=$(cd "$DAP_TPL_DIR" && "$AWK_CMD" -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>/dev/null)
 
 # Count occurrences - use grep and wc for reliable counting
 VOID_COUNT=$(echo "$OUTPUT2" | grep -E "^[[:space:]]*VOID_BRANCH:" 2>/dev/null | wc -l)
@@ -112,7 +118,7 @@ echo "PASS: Test 2 - correct branch counts"
 echo ""
 echo "Test 3: RETURN_TYPES='int char' - should have 0 VOID and 2 NON-VOID"
 export RETURN_TYPES="int char"
-OUTPUT3=$(cd "$DAP_TPL_DIR" && mawk -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>/dev/null)
+OUTPUT3=$(cd "$DAP_TPL_DIR" && "$AWK_CMD" -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>/dev/null)
 
 # Count occurrences - use grep and wc for reliable counting
 VOID_COUNT=$(echo "$OUTPUT3" | grep -E "^[[:space:]]*VOID_BRANCH:" 2>/dev/null | wc -l)
