@@ -89,10 +89,16 @@ replace_template_placeholders() {
     # Build engine with unique temp directory to avoid race conditions
     TEMP_DIR="${DAP_TPL_TEMP_DIR:-/tmp/dap_tpl_$$}"
     export DAP_TPL_TEMP_DIR="$TEMP_DIR"
-    "${SCRIPT_DIR}/utils/build_engine.sh" >/dev/null 2>&1
+    local _engine_stderr _engine_rc=0
+    _engine_stderr=$("${SCRIPT_DIR}/utils/build_engine.sh" 2>&1 >/dev/null) || _engine_rc=$?
+    if [ "$_engine_rc" -ne 0 ]; then
+        echo "ERROR: Engine build failed (exit code $_engine_rc)" >&2
+        [ -n "$_engine_stderr" ] && echo "$_engine_stderr" >&2
+        return 1
+    fi
     ENGINE="$TEMP_DIR/dap_tpl_engine.awk"
     
-    [ ! -f "$ENGINE" ] && echo "ERROR: Engine build failed" >&2 && return 1
+    [ ! -f "$ENGINE" ] && echo "ERROR: Engine file not found after build: $ENGINE" >&2 && return 1
     
     # Process template
     export DAP_TPL_ENGINE_PATH="$ENGINE"
