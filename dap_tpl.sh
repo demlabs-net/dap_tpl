@@ -88,7 +88,7 @@ replace_template_placeholders() {
     # 2) Cross-process: filesystem cache keyed by source dir content hash
     #    build_engine.sh takes ~1.3s; with 6 test targets × 7 calls = 42 builds avoided
     local ENGINE=""
-    if [ -n "$DAP_TPL_ENGINE_PATH" ] && [ -f "$DAP_TPL_ENGINE_PATH" ]; then
+    if [ -n "${DAP_TPL_ENGINE_PATH:-}" ] && [ -f "${DAP_TPL_ENGINE_PATH:-}" ]; then
         ENGINE="$DAP_TPL_ENGINE_PATH"
     else
         # Cross-process cache: deterministic path based on source tree mtime

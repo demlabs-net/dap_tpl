@@ -111,12 +111,13 @@ if [ -n "$MOCKING_DIR" ] && [ -d "$MOCKING_DIR" ]; then
     MOCKING_DIR_ABS="$(cd "$MOCKING_DIR" && pwd)"
     MOCK_REL_PATH=$(realpath --relative-to="$DAP_TPL_DIR" "$MOCKING_DIR_ABS")
     {
-        # Include loose .awk files at the mocking root level
+        # Include top-level .awk files from extensions dir first
         for mock_file in "$MOCKING_DIR"/*.awk; do
-            [ -f "$mock_file" ] || continue
-            mock_file_name=$(basename "$mock_file")
-            echo "BEGIN { DEBUG_FILE_NAME = \"mock_${mock_file_name}\" }"
-            echo "@include \"${MOCK_REL_PATH}/${mock_file_name}\""
+            if [ -f "$mock_file" ]; then
+                mock_basename=$(basename "$mock_file" .awk)
+                echo "BEGIN { DEBUG_FILE_NAME = \"mock_${mock_basename}\" }"
+                echo "@include \"${MOCK_REL_PATH}/$(basename "$mock_file")\""
+            fi
         done
 
         for mock_dir in "$MOCKING_DIR"/*; do

@@ -1,13 +1,13 @@
 #!/bin/bash
-# EXACT reproduction - via replace_template_placeholders_with_mocking wrapper
+# Regression: variable visibility in {{#include}} when --extensions-dir is used
+# Reproduces the exact bug where env variables became invisible to included
+# templates when the engine was built with extension modules.
 
 set -e
 
 TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DAP_TPL_DIR="$(cd "$TEST_DIR/../.." && pwd)"
-MOCKS_DIR="$(cd "$TEST_DIR/../../../mocks" && pwd)"
 
-# Colors
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 NC='\033[0m'
@@ -17,28 +17,31 @@ print_fail() { echo -e "${RED}FAIL${NC}: $1"; }
 
 cleanup() {
     rm -f /tmp/test_exact_bug_*.tpl /tmp/test_exact_bug_*.txt
-    rm -rf /tmp/test_exact_bug_templates
+    rm -rf /tmp/test_exact_bug_templates /tmp/test_exact_bug_ext
 }
 trap cleanup EXIT
 
-# SOURCE the REAL mock common file to get the wrapper
-source "${MOCKS_DIR}/lib/dap_mock_common.sh"
-init_mock_common
+source "${DAP_TPL_DIR}/dap_tpl.sh"
 
-echo "Test: EXACT bug reproduction - via replace_template_placeholders_with_mocking"
+echo "Test: variable visibility in #include with --extensions-dir"
 
-# Create templates directory  
 mkdir -p /tmp/test_exact_bug_templates
+mkdir -p /tmp/test_exact_bug_ext
 export TEMPLATES_DIR="/tmp/test_exact_bug_templates"
+export SCRIPTS_DIR="${DAP_TPL_DIR}"
+export AWKPATH="${DAP_TPL_DIR}"
 
-# Create main template (like mock_map_macros.h.tpl)
+# Minimal no-op extension to trigger the extensions code path
+cat > /tmp/test_exact_bug_ext/noop_ext.awk << 'AWKEOF'
+function noop_extension_stub() { return 0 }
+AWKEOF
+
 cat > /tmp/test_exact_bug_main.tpl << 'EOF'
 // Main template
 {{#include "sub_with_for.tpl"}}
 // End main
 EOF
 
-# Create sub-template (like mock_map_param_count_routing.h.tpl)
 cat > /tmp/test_exact_bug_templates/sub_with_for.tpl << 'EOF'
 {{#if PARAM_COUNTS_LIST}}
 // PARAM_COUNTS_LIST found
@@ -50,17 +53,14 @@ cat > /tmp/test_exact_bug_templates/sub_with_for.tpl << 'EOF'
 {{/if}}
 EOF
 
-# Export variables (like in dap_mock_autowrap.sh)
 export PARAM_COUNTS_LIST="0|2|5"
 export MAX_ARGS_COUNT="12"
 
-echo "Exported variables:"
-env | grep -E "^PARAM_COUNTS_LIST=|^MAX_ARGS_COUNT="
+replace_template_placeholders \
+    "/tmp/test_exact_bug_main.tpl" \
+    "/tmp/test_exact_bug_output.txt" \
+    --extensions-dir "/tmp/test_exact_bug_ext"
 
-# Call via wrapper (EXACT path as real code)
-replace_template_placeholders_with_mocking "/tmp/test_exact_bug_main.tpl" "/tmp/test_exact_bug_output.txt"
-
-# Read output
 OUTPUT=$(cat /tmp/test_exact_bug_output.txt 2>/dev/null || echo "FILE NOT CREATED")
 
 echo ""
@@ -69,7 +69,6 @@ echo "$OUTPUT"
 echo "=============="
 echo ""
 
-# Verify
 if echo "$OUTPUT" | grep -q "PARAM_COUNTS_LIST found"; then
     print_pass "PARAM_COUNTS_LIST visible in included template"
 else
