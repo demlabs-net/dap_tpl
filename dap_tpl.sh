@@ -3,18 +3,14 @@
 
 set -e
 
-# Detect AWK implementation
-# With POSIX compatibility layer, any AWK works (gawk, mawk, nawk, awk)
-# Preference order: gawk (most features), mawk (fastest), then generic awk
+# Detect AWK implementation — strictly mawk only
 detect_awk() {
-    local awk_cmd
-    for awk_cmd in gawk mawk nawk awk; do
-        if command -v "$awk_cmd" >/dev/null 2>&1; then
-            echo "$awk_cmd"
-            return 0
-        fi
-    done
-    echo "awk"
+    if command -v mawk >/dev/null 2>&1; then
+        echo "mawk"
+        return 0
+    fi
+    echo "ERROR: mawk is required but not found. Install: apt install mawk" >&2
+    return 1
 }
 
 AWK_CMD=$(detect_awk)

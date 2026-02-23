@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Detect available AWK
-AWK_CMD="${AWK_CMD:-$(command -v gawk || command -v mawk || command -v awk)}"
+AWK_CMD="${AWK_CMD:-mawk}"
 export DAP_AWK_PID="$$"
 export DAP_AWK_SYSTIME="$(date +%s)"
 

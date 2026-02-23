@@ -108,16 +108,20 @@ MOCKING_DIR="$1"
 if [ -n "$MOCKING_DIR" ] && [ -d "$MOCKING_DIR" ]; then
     echo "Adding mocking extensions from: $MOCKING_DIR"
     MOCKING_TEMP="$TEMP_DIR/dap_tpl_mocking.awk"
+    MOCKING_DIR_ABS="$(cd "$MOCKING_DIR" && pwd)"
+    MOCK_REL_PATH=$(realpath --relative-to="$DAP_TPL_DIR" "$MOCKING_DIR_ABS")
     {
+        # Include loose .awk files at the mocking root level
+        for mock_file in "$MOCKING_DIR"/*.awk; do
+            [ -f "$mock_file" ] || continue
+            mock_file_name=$(basename "$mock_file")
+            echo "BEGIN { DEBUG_FILE_NAME = \"mock_${mock_file_name}\" }"
+            echo "@include \"${MOCK_REL_PATH}/${mock_file_name}\""
+        done
+
         for mock_dir in "$MOCKING_DIR"/*; do
             if [ -d "$mock_dir" ]; then
                 mock_name=$(basename "$mock_dir")
-                
-                # Calculate relative path from DAP_TPL_DIR to MOCKING_DIR
-                # MOCKING_DIR is relative to DAP_SDK_DIR, e.g., test-framework/mocks/lib/dap_tpl
-                # DAP_TPL_DIR is test-framework/dap_tpl
-                # So relative path is ../mocks/lib/dap_tpl
-                MOCK_REL_PATH="../mocks/lib/dap_tpl"
                 
                 # Include ALL mock files in the right order (same as constructs)
                 # 1. Tokenizer (if exists)

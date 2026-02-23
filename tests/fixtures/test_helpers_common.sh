@@ -1,15 +1,14 @@
 #!/bin/bash
 # Common test helpers - for running AWK tests with @include preprocessing
 
-# Detect available AWK (prefer gawk, then mawk, then any awk)
+# Detect AWK — strictly mawk only
 detect_awk() {
-    for awk_cmd in gawk mawk nawk awk; do
-        if command -v "$awk_cmd" >/dev/null 2>&1; then
-            echo "$awk_cmd"
-            return 0
-        fi
-    done
-    echo "awk"
+    if command -v mawk >/dev/null 2>&1; then
+        echo "mawk"
+        return 0
+    fi
+    echo "ERROR: mawk is required but not found" >&2
+    return 1
 }
 
 AWK_CMD="${AWK_CMD:-$(detect_awk)}"
