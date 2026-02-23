@@ -14,15 +14,12 @@ detect_awk() {
             return 0
         fi
     done
-    # Fallback - should always exist on Unix systems
     echo "awk"
 }
 
 AWK_CMD=$(detect_awk)
-export AWK_CMD  # Export for nested AWK scripts to use via ENVIRON["AWK_CMD"]
+export AWK_CMD
 
-# Export POSIX compatibility variables
-# These replace gawk-specific systime() and PROCINFO["pid"]
 export DAP_AWK_PID="$$"
 export DAP_AWK_SYSTIME="$(date +%s)"
 
@@ -31,11 +28,11 @@ replace_template_placeholders() {
     local template_file="$1"
     local output_file="${2:-}"
     local var_arg var_name var_val val_file
-    
+    local extensions_dir=""
+    local _skip_next=0
+
     [ ! -f "$template_file" ] && echo "ERROR: Template not found: $template_file" >&2 && return 1
-    
-    # Get script directory
-    # Use DAP_TPL_DIR if set (when sourced), otherwise detect from $0
+
     if [ -n "$DAP_TPL_DIR" ]; then
         SCRIPT_DIR="$DAP_TPL_DIR"
     else
@@ -43,40 +40,44 @@ replace_template_placeholders() {
     fi
     export SCRIPTS_DIR="${SCRIPT_DIR}"
     export AWKPATH="${SCRIPT_DIR}"
-    
-    # Export variables - skip template_file and output_file arguments
+
     local arg_index=0
     for var_arg in "$@"; do
         arg_index=$((arg_index + 1))
-        
-        # Skip first argument (template_file)
         [ "$arg_index" -eq 1 ] && continue
-        
-        # Skip second argument if it's not a variable assignment (it's output_file)
         if [ "$arg_index" -eq 2 ]; then
-            case "$var_arg" in
-                *=*) ;;  # It's a variable, process it
-                *) continue ;;  # It's output_file, skip it
-            esac
+            case "$var_arg" in *=*) ;; *) continue ;; esac
         fi
-        
+
+        if [ "$_skip_next" = "1" ]; then
+            _skip_next=0
+            continue
+        fi
+
         case "$var_arg" in
+            --extensions-dir)
+                _skip_next=1
+                # Peek ahead: capture next positional arg as extensions_dir value
+                local _peek_idx=0
+                for _peek_arg in "$@"; do
+                    _peek_idx=$((_peek_idx + 1))
+                    [ "$_peek_idx" -le "$arg_index" ] && continue
+                    extensions_dir="$_peek_arg"
+                    break
+                done
+                continue
+                ;;
             --*)
-                # Skip flags (like --extensions-dir) and their values
-                # Next argument will be the value, skip it too in next iteration
+                _skip_next=1
                 continue
                 ;;
             *=*)
                 var_name="${var_arg%%=*}"
                 var_val="${var_arg#*=}"
-                
                 case "$var_val" in
                     @*)
-                        # Read from file
                         val_file="${var_val#@}"
-                        if [ -f "$val_file" ]; then
-                            export "$var_name"="$(cat "$val_file")"
-                        fi
+                        [ -f "$val_file" ] && export "$var_name"="$(cat "$val_file")"
                         ;;
                     *)
                         export "$var_name"="$var_val"
@@ -85,36 +86,77 @@ replace_template_placeholders() {
                 ;;
         esac
     done
-    
-    # Build engine with unique temp directory to avoid race conditions
-    TEMP_DIR="${DAP_TPL_TEMP_DIR:-/tmp/dap_tpl_$$}"
-    export DAP_TPL_TEMP_DIR="$TEMP_DIR"
-    local _engine_stderr _engine_rc=0
-    _engine_stderr=$("${SCRIPT_DIR}/utils/build_engine.sh" 2>&1 >/dev/null) || _engine_rc=$?
-    if [ "$_engine_rc" -ne 0 ]; then
-        echo "ERROR: Engine build failed (exit code $_engine_rc)" >&2
-        [ -n "$_engine_stderr" ] && echo "$_engine_stderr" >&2
-        return 1
+
+    # Engine caching (two levels):
+    # 1) In-process: DAP_TPL_ENGINE_PATH env var (same shell, multiple calls)
+    # 2) Cross-process: filesystem cache keyed by source dir content hash
+    #    build_engine.sh takes ~1.3s; with 6 test targets × 7 calls = 42 builds avoided
+    local ENGINE=""
+    if [ -n "$DAP_TPL_ENGINE_PATH" ] && [ -f "$DAP_TPL_ENGINE_PATH" ]; then
+        ENGINE="$DAP_TPL_ENGINE_PATH"
+    else
+        # Cross-process cache: deterministic path based on source tree mtime
+        local _cache_base="/tmp/dap_tpl_engine_cache"
+        local _cache_key
+        _cache_key=$(printf '%s:%s' "$SCRIPT_DIR" "$extensions_dir" | cksum | cut -d' ' -f1)
+        local _cache_dir="${_cache_base}/${_cache_key}"
+        local _cached_engine="${_cache_dir}/dap_tpl_engine.awk"
+        local _cache_stamp="${_cache_dir}/.stamp"
+
+        # Check if cached engine is still valid (source AWK files not modified)
+        local _need_rebuild=1
+        if [ -f "$_cached_engine" ] && [ -f "$_cache_stamp" ]; then
+            local _src_newest
+            _src_newest=$(find "$SCRIPT_DIR" -name '*.awk' -newer "$_cache_stamp" 2>/dev/null | head -1)
+            if [ -z "$_src_newest" ]; then
+                # Also check extensions dir if present
+                if [ -n "$extensions_dir" ] && [ -d "$extensions_dir" ]; then
+                    _src_newest=$(find "$extensions_dir" -name '*.awk' -newer "$_cache_stamp" 2>/dev/null | head -1)
+                fi
+                [ -z "$_src_newest" ] && _need_rebuild=0
+            fi
+        fi
+
+        if [ "$_need_rebuild" = "0" ]; then
+            ENGINE="$_cached_engine"
+        else
+            mkdir -p "$_cache_dir"
+            export DAP_TPL_TEMP_DIR="$_cache_dir"
+            local _engine_stderr _engine_rc=0
+            _engine_stderr=$("${SCRIPT_DIR}/utils/build_engine.sh" "$extensions_dir" 2>&1 >/dev/null) || _engine_rc=$?
+            if [ "$_engine_rc" -ne 0 ]; then
+                echo "ERROR: Engine build failed (exit code $_engine_rc)" >&2
+                [ -n "$_engine_stderr" ] && echo "$_engine_stderr" >&2
+                return 1
+            fi
+            ENGINE="${_cache_dir}/dap_tpl_engine.awk"
+            [ ! -f "$ENGINE" ] && echo "ERROR: Engine file not found after build: $ENGINE" >&2 && return 1
+            touch "$_cache_stamp"
+        fi
+        export DAP_TPL_ENGINE_PATH="$ENGINE"
+        export DAP_TPL_TEMP_DIR="${_cache_dir}"
     fi
-    ENGINE="$TEMP_DIR/dap_tpl_engine.awk"
-    
-    [ ! -f "$ENGINE" ] && echo "ERROR: Engine file not found after build: $ENGINE" >&2 && return 1
-    
-    # Process template
-    export DAP_TPL_ENGINE_PATH="$ENGINE"
-    
+
     local result=0
     if [ -n "$output_file" ]; then
-        # Run AWK: stdout to file, stderr to terminal (no 2>&1 to avoid polluting output)
         DEBUG_ENABLED=0 "$AWK_CMD" -f "$ENGINE" "$template_file" > "$output_file" || result=$?
     else
         DEBUG_ENABLED=0 "$AWK_CMD" -f "$ENGINE" "$template_file" || result=$?
     fi
-    
-    # Cleanup unique temp dir (engine and any leftovers)
-    rm -rf "$TEMP_DIR" 2>/dev/null || true
-    
+
     return $result
+}
+
+# Reset in-process engine cache (cross-process filesystem cache persists).
+# Call between test targets if extensions change, or at script exit.
+dap_tpl_cleanup() {
+    unset DAP_TPL_ENGINE_PATH DAP_TPL_TEMP_DIR
+}
+
+# Remove the cross-process filesystem cache entirely.
+dap_tpl_purge_cache() {
+    rm -rf /tmp/dap_tpl_engine_cache 2>/dev/null || true
+    dap_tpl_cleanup
 }
 
 # Call main function if script is executed directly (not sourced)
