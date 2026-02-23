@@ -5,7 +5,7 @@ set -e
 
 TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DAP_TPL_DIR="$(cd "$TEST_DIR/../.." && pwd)"
-MOCKS_DIR="$(cd "$TEST_DIR/../../../../dap-sdk/module/test/mocks" && pwd)"
+MOCKS_DIR="$(cd "$TEST_DIR/../../../mocks" && pwd)"
 
 # Colors
 GREEN='\033[0;32m'
@@ -23,6 +23,7 @@ trap cleanup EXIT
 
 # SOURCE the REAL mock common file to get the wrapper
 source "${MOCKS_DIR}/lib/dap_mock_common.sh"
+init_mock_common
 
 echo "Test: EXACT bug reproduction - via replace_template_placeholders_with_mocking"
 

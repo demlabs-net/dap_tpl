@@ -4,7 +4,7 @@
 @include "core/token_tree.awk"
 @include "core/variable_context.awk"
 
-function evaluate_include(token_id, depth,    file_path, condition, metadata, file_content, line, text_token_id, scripts_dir, temp_output, cmd, processed_content, var_name, templates_dir, full_path, var_value, env_file, file_path_escaped, engine_file_escaped, scripts_dir_escaped, temp_output_escaped) {
+function evaluate_include(token_id, depth,    file_path, condition, metadata, file_content, line, text_token_id, scripts_dir, cmd, processed_content, var_name, templates_dir, full_path, var_value, env_file, file_path_escaped, engine_file_escaped, scripts_dir_escaped) {
     if (depth == "") depth = 0
     
     if (depth > 10) {
@@ -62,11 +62,7 @@ function evaluate_include(token_id, depth,    file_path, condition, metadata, fi
         scripts_dir = ENVIRON["SCRIPTS_DIR"]
         if (scripts_dir == "") scripts_dir = "."
         
-        # Use PID and timestamp for unique temp file name to avoid collisions in parallel builds
-        temp_output = "/tmp/include_" PROCINFO["pid"] "_" NR "_" depth "_" rand() "_" systime() ".out"
-        
         # Write environment variables to temporary file to avoid mawk sprintf buffer overflow (8192 bytes)
-        # This is more reliable than passing huge env_vars_str through command line
         env_file = "/tmp/include_env_" PROCINFO["pid"] "_" NR "_" depth "_" rand() "_" systime() ".sh"
         
         export_context_to_environ()
@@ -112,38 +108,26 @@ function evaluate_include(token_id, depth,    file_path, condition, metadata, fi
         close(compiled_engine)
         engine_file = compiled_engine
         
-        # Build command using env file to avoid sprintf buffer overflow
-        # Source env file, then run mawk with engine
-        # Note: No need for long sprintf - just source the env file
         file_path_escaped = file_path
         gsub(/'/, "'\\''", file_path_escaped)
         engine_file_escaped = engine_file
         gsub(/'/, "'\\''", engine_file_escaped)
         scripts_dir_escaped = scripts_dir
         gsub(/'/, "'\\''", scripts_dir_escaped)
-        temp_output_escaped = temp_output
-        gsub(/'/, "'\\''", temp_output_escaped)
         
-        # Short command that sources env file
-        # Use AWK_CMD from environment (any POSIX awk works with compatibility layer)
         awk_cmd = (ENVIRON["AWK_CMD"] != "") ? ENVIRON["AWK_CMD"] : "awk"
-        cmd = "(. '" env_file "' && AWKPATH='" scripts_dir_escaped "' DAP_TPL_ENGINE_PATH='" engine_file_escaped "' " awk_cmd " -f '" engine_file_escaped "' '" file_path_escaped "') > '" temp_output_escaped "' 2>&1"
-        
-        rc = system(cmd)
-        
-        # Clean up env file immediately
-        system("rm -f '" env_file "'")
+        cmd = "(. '" env_file "' && AWKPATH='" scripts_dir_escaped "' DAP_TPL_ENGINE_PATH='" engine_file_escaped "' " awk_cmd " -f '" engine_file_escaped "' '" file_path_escaped "') 2>/dev/null"
         
         processed_content = ""
-        while ((getline line < temp_output) > 0) {
+        while ((cmd | getline line) > 0) {
             if (processed_content != "") {
                 processed_content = processed_content "\n"
             }
             processed_content = processed_content line
         }
-        close(temp_output)
+        close(cmd)
         
-        system("rm -f '" temp_output "'")
+        system("rm -f '" env_file "'")
         
         delete metadata
         text_token_id = create_token("text", processed_content, metadata)
