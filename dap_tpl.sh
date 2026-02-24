@@ -3,17 +3,7 @@
 
 set -e
 
-# Detect AWK implementation — strictly mawk only
-detect_awk() {
-    if command -v mawk >/dev/null 2>&1; then
-        echo "mawk"
-        return 0
-    fi
-    echo "ERROR: mawk is required but not found. Install: apt install mawk" >&2
-    return 1
-}
-
-AWK_CMD=$(detect_awk)
+AWK_CMD="awk"
 export AWK_CMD
 
 export DAP_AWK_PID="$$"

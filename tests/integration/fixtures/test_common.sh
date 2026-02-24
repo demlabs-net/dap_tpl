@@ -1,17 +1,7 @@
 #!/bin/bash
 # Common test fixtures and helper functions for integration tests
 
-# Detect AWK — strictly mawk only
-detect_awk() {
-    if command -v mawk >/dev/null 2>&1; then
-        echo "mawk"
-        return 0
-    fi
-    echo "ERROR: mawk is required but not found" >&2
-    return 1
-}
-
-AWK_CMD="${AWK_CMD:-$(detect_awk)}"
+AWK_CMD="${AWK_CMD:-awk}"
 
 # Export POSIX compatibility variables
 export DAP_AWK_PID="$$"

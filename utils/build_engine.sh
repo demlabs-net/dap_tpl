@@ -251,14 +251,12 @@ cp "$ENGINE_POSIX_COMPAT" "$ENGINE_FINAL"
 echo "  Engine: $ENGINE_FINAL"
 
 # Step 8: Validate
-if command -v mawk >/dev/null 2>&1; then
-    echo "Step 8: Validating syntax with mawk..."
-    if mawk -f "$ENGINE_FINAL" /dev/null 2>/dev/null; then
-        echo "  ✓ Syntax validation passed!"
-    else
-        echo "  ✗ Syntax validation failed:"
-        mawk -f "$ENGINE_FINAL" /dev/null 2>&1 | head -10
-    fi
+echo "Step 8: Validating syntax with awk..."
+if awk -f "$ENGINE_FINAL" /dev/null 2>/dev/null; then
+    echo "  ✓ Syntax validation passed!"
+else
+    echo "  ✗ Syntax validation failed:"
+    awk -f "$ENGINE_FINAL" /dev/null 2>&1 | head -10
 fi
 
 # Cleanup intermediate temp files (keep only final engine)

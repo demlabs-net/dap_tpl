@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Detect available AWK
-AWK_CMD="${AWK_CMD:-mawk}"
+AWK_CMD="${AWK_CMD:-awk}"
 export DAP_AWK_PID="$$"
 export DAP_AWK_SYSTIME="$(date +%s)"
 
