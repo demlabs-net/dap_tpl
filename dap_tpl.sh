@@ -70,6 +70,8 @@ replace_template_placeholders() {
             *=*)
                 var_name="${var_arg%%=*}"
                 var_val="${var_arg#*=}"
+                # Bash arrays can't be exported to env; unset first to force scalar
+                unset "$var_name" 2>/dev/null || true
                 case "$var_val" in
                     @*)
                         val_file="${var_val#@}"
