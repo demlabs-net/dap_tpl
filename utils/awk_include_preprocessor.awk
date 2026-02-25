@@ -66,12 +66,18 @@ function resolve_file(inc_path, base_dir,    file, test_path, dirs, n, i) {
     
     # Try different paths
     if (file_exists(inc_path)) {
-        return normalize_path(inc_path)
+        file = normalize_path(inc_path)
+        if (substr(file, 1, 1) != "/")
+            file = get_canonical_path(inc_path)
+        return file
     }
     
     test_path = base_dir "/" inc_path
     if (file_exists(test_path)) {
-        return normalize_path(test_path)
+        file = normalize_path(test_path)
+        if (substr(file, 1, 1) != "/")
+            file = get_canonical_path(test_path)
+        return file
     }
     
     # Try AWKPATH
