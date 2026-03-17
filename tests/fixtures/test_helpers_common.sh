@@ -20,7 +20,8 @@ run_preprocessed_awk_test() {
     
     # Step 1: Expand @include directives
     local temp1="/tmp/dap_tpl_test_$$_1.awk"
-    if ! AWKPATH="${dap_tpl_dir}" "${dap_tpl_dir}/utils/awk_include_preprocessor.sh" "$test_file" "${dap_tpl_dir}" > "$temp1" 2>/dev/null; then
+    local awk_path="${AWKPATH:-${dap_tpl_dir}}"
+    if ! AWKPATH="${awk_path}" "${dap_tpl_dir}/utils/awk_include_preprocessor.sh" "$test_file" "${dap_tpl_dir}" > "$temp1" 2>/dev/null; then
         echo "ERROR: Failed to preprocess includes in $test_file" >&2
         rm -f "$temp1"
         return 2
