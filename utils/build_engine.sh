@@ -12,6 +12,45 @@ MULTIDIM_FOR_PROCESSOR="${SCRIPT_DIR}/multidim_for_preprocessor.sh"
 NORMALIZE_CREATE_TOKEN="${SCRIPT_DIR}/normalize_create_token.sh"
 POSIX_COMPAT_PROCESSOR="${SCRIPT_DIR}/posix_compat_preprocessor.sh"
 
+# Portable relative path (no GNU realpath --relative-to, no python)
+# Both arguments must be absolute canonical paths.
+# Usage: rel_path <target> <base>
+rel_path() {
+    local _target="$1" _base="$2"
+    _target="${_target%/}"
+    _base="${_base%/}"
+
+    if [ "$_target" = "$_base" ]; then echo "."; return; fi
+
+    local _common="$_base" _up=""
+    while true; do
+        case "$_target" in
+            "$_common"/*) break ;;
+            "$_common")   break ;;
+        esac
+        _up="../$_up"
+        local _parent
+        _parent="$(dirname "$_common")"
+        [ "$_parent" = "$_common" ] && _common="" && break
+        _common="$_parent"
+    done
+
+    local _rel=""
+    if [ -n "$_common" ]; then
+        case "$_target" in "$_common"/*) _rel="${_target#"$_common"/}" ;; esac
+    else
+        _rel="${_target#/}"
+    fi
+
+    if [ -n "$_up" ] && [ -n "$_rel" ]; then
+        echo "${_up}${_rel}"
+    elif [ -n "$_up" ]; then
+        echo "${_up%/}"
+    else
+        echo "$_rel"
+    fi
+}
+
 # Use unique temp directory to avoid race conditions in parallel builds
 TEMP_DIR="${DAP_TPL_TEMP_DIR:-/tmp/dap_tpl_$$}"
 mkdir -p "$TEMP_DIR"
@@ -109,7 +148,7 @@ if [ -n "$MOCKING_DIR" ] && [ -d "$MOCKING_DIR" ]; then
     echo "Adding mocking extensions from: $MOCKING_DIR"
     MOCKING_TEMP="$TEMP_DIR/dap_tpl_mocking.awk"
     MOCKING_DIR_ABS="$(cd "$MOCKING_DIR" && pwd)"
-    MOCK_REL_PATH=$(realpath --relative-to="$DAP_TPL_DIR" "$MOCKING_DIR_ABS")
+    MOCK_REL_PATH=$(rel_path "$MOCKING_DIR_ABS" "$DAP_TPL_DIR")
     {
         # Include top-level .awk files from extensions dir first
         for mock_file in "$MOCKING_DIR"/*.awk; do
