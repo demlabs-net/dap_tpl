@@ -76,7 +76,7 @@ function process_in_list(base_value, func_arg,    list_var_name, list_value, fou
     
     found = 0
     if (list_value != "" && base_value != "") {
-        n = split(list_value, items, /\n|\|/)
+        n = split(list_value, items, _NEWLINE "|\\|")
         for (i = 1; i <= n; i++) {
             gsub(/^[ \t]+|[ \t]+$/, "", items[i])
             if (items[i] == base_value) {

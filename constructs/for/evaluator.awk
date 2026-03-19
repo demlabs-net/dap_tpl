@@ -127,20 +127,20 @@ function evaluate_for(token_id,    condition, loop_vars, loop_var_count, array_n
     # Support both newline-separated (for file-based data) and custom separator
     # Check separator value (can be "\n", "\n\n", " ", "|", or custom string)
     if (separator == "\n") {
-        # Single newline separator
-        item_count = split(array_value, items, /\n/)
+        # Single newline separator — use _NEWLINE variable (BSD awk ignores \n in /regex/)
+        item_count = split(array_value, items, _NEWLINE)
     } else if (separator == "\n\n") {
-        # Double newline separator - for multiline entries
-        item_count = split(array_value, items, /\n\n/)
+        # Double newline separator
+        item_count = split(array_value, items, _NEWLINE _NEWLINE)
     } else if (separator == "|") {
         # Pipe separator
         item_count = split(array_value, items, /\|/)
     } else if (separator == " " || separator == "space") {
         # Space separator - use regex to split by one or more spaces
-        item_count = split(array_value, items, /[ \t]+/)
+        item_count = split(array_value, items, /[[:space:]]+/)
     } else if (separator == "" || separator == "newline") {
         # Empty separator or newline keyword (fallback)
-        item_count = split(array_value, items, /\n/)
+        item_count = split(array_value, items, _NEWLINE)
     } else {
         # Custom separator - escape special regex chars
         escaped_sep = separator
