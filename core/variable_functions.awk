@@ -157,6 +157,24 @@ function register_variable_function(func_name, handler_func, needs_varname) {
     }
 }
 
+# Apply a chain of variable functions: {{VAR|func1|arg1|func2|arg2|...}}
+# Processes function pairs sequentially, passing each result to the next function.
+# Returns the final result after all functions are applied.
+function apply_function_chain(var_name, full_expr, base_value,    _fc_parts, _fc_n, _fc_i, _fc_func, _fc_arg, _fc_result) {
+    _fc_n = split(full_expr, _fc_parts, "|")
+    if (_fc_n < 2) return base_value
+
+    _fc_result = base_value
+    _fc_i = 2
+    while (_fc_i <= _fc_n) {
+        _fc_func = _fc_parts[_fc_i]
+        _fc_arg = (_fc_i + 1 <= _fc_n) ? _fc_parts[_fc_i + 1] : ""
+        _fc_i += 2
+        _fc_result = process_variable_function(var_name, _fc_func, _fc_arg, _fc_result)
+    }
+    return _fc_result
+}
+
 # Main function to process variable function
 # Uses dispatch table for extensible function handling
 function process_variable_function(var_name, func_name, func_arg, base_value,    handler_func) {
