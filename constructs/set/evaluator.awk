@@ -55,7 +55,7 @@ function find_innermost_marker(text, start_pos, marker_info,    pos, marker_pos,
 }
 
 # Evaluate variable expression in set value recursively
-function evaluate_set_value(value_expr,    result, marker_info, marker_text, var_expr, parsed_expr, var_name, func_name, func_arg, base_value, var_value, before, after, max_iterations, iterations, parts_count_var, parts_count, part_var, p) {
+function evaluate_set_value(value_expr,    result, marker_info, marker_text, var_expr, parsed_expr, var_name, func_name, func_arg, base_value, var_value, before, after, max_iterations, iterations, parts_count_var, parts_count, part_var, p, _set_n, _set_parts) {
     # Initialize result with value expression
     result = value_expr
     max_iterations = 100
@@ -85,11 +85,22 @@ function evaluate_set_value(value_expr,    result, marker_info, marker_text, var
             func_name = get_func_name(parsed_expr)
             func_arg = get_func_arg(parsed_expr)
             
-            # Get base value - get_var now properly searches contexts and ENVIRON
-            # set_var always syncs to ENVIRON, so get_var will find variables set in previous iterations
             base_value = get_var(var_name)
             
-            if (func_name != "") {
+            # Detect function chain: var|func1|arg1|func2|arg2|...
+            _set_n = split(marker_text, _set_parts, "|")
+            if (_set_n > 3) {
+                var_value = apply_function_chain(var_name, marker_text, base_value)
+                parts_count_var = var_name "_parts_count"
+                if (parts_count_var in ENVIRON) {
+                    parts_count = ENVIRON[parts_count_var]
+                    for (p = 0; p < parts_count; p++) {
+                        part_var = var_name "_parts_" p
+                        if (part_var in ENVIRON) set_var(part_var, ENVIRON[part_var])
+                    }
+                    set_var(parts_count_var, parts_count)
+                }
+            } else if (func_name != "") {
                 var_value = process_variable_function(var_name, func_name, func_arg, base_value)
                 if (func_name == "split") {
                     parts_count_var = var_name "_parts_count"
@@ -97,9 +108,7 @@ function evaluate_set_value(value_expr,    result, marker_info, marker_text, var
                         parts_count = ENVIRON[parts_count_var]
                         for (p = 0; p < parts_count; p++) {
                             part_var = var_name "_parts_" p
-                            if (part_var in ENVIRON) {
-                                set_var(part_var, ENVIRON[part_var])
-                            }
+                            if (part_var in ENVIRON) set_var(part_var, ENVIRON[part_var])
                         }
                         set_var(parts_count_var, parts_count)
                     }
