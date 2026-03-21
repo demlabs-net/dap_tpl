@@ -180,10 +180,8 @@ function evaluate_set(token_id,    condition, var_name, var_value, child_count, 
             vars[var_name] = evaluated_value
         }
     } else {
-        # Debug output
-        if (DEBUG_ENABLED) {
-            printf "DEBUG evaluate_set: token_id=%d condition=[%s] doesn't match VAR=value pattern, returning token_id\n", token_id, condition > "/dev/stderr"
-        }
+        # Block mode: {{#set VAR}}content{{/set}}
+        # Return token_id as-is; evaluator_core handles capture
         return token_id
     }
     

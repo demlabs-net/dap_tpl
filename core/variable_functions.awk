@@ -123,6 +123,160 @@ function process_trim(base_value, func_arg,    result) {
     return result
 }
 
+# ---------------------------------------------------------------------------
+# Native recursive-descent integer arithmetic evaluator.
+# Eliminates subprocess spawning — all evaluation is in-process.
+#
+# Grammar (operator precedence, lowest→highest):
+#   expr           → additive
+#   additive       → multiplicative (('+' | '-') multiplicative)*
+#   multiplicative → unary (('*' | '/' | '%') unary)*
+#   unary          → '-' unary | primary
+#   primary        → '(' expr ')' | integer
+# ---------------------------------------------------------------------------
+function _eval_peek(   ch) {
+    if (_eval_pos > _eval_len) return ""
+    return substr(_eval_str, _eval_pos, 1)
+}
+function _eval_skip_ws() {
+    while (_eval_pos <= _eval_len && substr(_eval_str, _eval_pos, 1) ~ /[ \t]/)
+        _eval_pos++
+}
+function _eval_primary(    ch, num, neg, val) {
+    _eval_skip_ws()
+    ch = _eval_peek()
+    if (ch == "(") {
+        _eval_pos++
+        val = _eval_additive()
+        _eval_skip_ws()
+        if (_eval_peek() == ")") _eval_pos++
+        return val
+    }
+    neg = 0
+    if (ch == "-") { neg = 1; _eval_pos++ }
+    _eval_skip_ws()
+    num = 0
+    while (_eval_pos <= _eval_len && substr(_eval_str, _eval_pos, 1) ~ /[0-9]/) {
+        num = num * 10 + int(substr(_eval_str, _eval_pos, 1))
+        _eval_pos++
+    }
+    return neg ? -num : num
+}
+function _eval_multiplicative(    val, op) {
+    val = _eval_primary()
+    while (1) {
+        _eval_skip_ws()
+        op = _eval_peek()
+        if (op != "*" && op != "/" && op != "%") break
+        _eval_pos++
+        if (op == "*") val = val * _eval_primary()
+        else if (op == "/") { val = int(val / _eval_primary()) }
+        else { val = val % _eval_primary() }
+    }
+    return val
+}
+function _eval_additive(    val, op) {
+    val = _eval_multiplicative()
+    while (1) {
+        _eval_skip_ws()
+        op = _eval_peek()
+        if (op != "+" && op != "-") break
+        _eval_pos++
+        if (op == "+") val = val + _eval_multiplicative()
+        else val = val - _eval_multiplicative()
+    }
+    return val
+}
+function _eval_expr(expr) {
+    _eval_str = expr
+    _eval_len = length(expr)
+    _eval_pos = 1
+    return int(_eval_additive())
+}
+
+# ---------------------------------------------------------------------------
+# Resolve variable names in an arithmetic expression string.
+# Scans for [a-zA-Z_][a-zA-Z0-9_]* tokens, replaces with ENVIRON value.
+# ---------------------------------------------------------------------------
+function _resolve_vars_in_expr(expr,    result, i, ch, name) {
+    result = ""
+    i = 1
+    while (i <= length(expr)) {
+        ch = substr(expr, i, 1)
+        if (ch ~ /[a-zA-Z_]/) {
+            name = ""
+            while (i <= length(expr) && substr(expr, i, 1) ~ /[a-zA-Z0-9_]/) {
+                name = name substr(expr, i, 1)
+                i++
+            }
+            if (name in ENVIRON && ENVIRON[name] ~ /^-?[0-9]+$/) {
+                result = result ENVIRON[name]
+            } else {
+                result = result "0"
+            }
+        } else {
+            result = result ch
+            i++
+        }
+    }
+    return result
+}
+
+# ---------------------------------------------------------------------------
+# math: evaluate arithmetic on the base value — zero-subprocess
+#   {{X|math|$+1}}      — X + 1
+#   {{X|math|($+1)%5}}  — (X + 1) mod 5
+#   $ is replaced with the base value; variable names are resolved from ENVIRON.
+# ---------------------------------------------------------------------------
+function process_math(base_value, func_arg,    expr, resolved) {
+    expr = func_arg
+    gsub(/\$/, int(base_value) "", expr)
+    resolved = _resolve_vars_in_expr(expr)
+    return _eval_expr(resolved)
+}
+
+# ---------------------------------------------------------------------------
+# at: indexed access into a pipe-separated list (0-based) — zero-subprocess
+#   {{LIST|at|3}}        — element 3 (literal)
+#   {{LIST|at|x}}        — element at ENVIRON["x"]
+#   {{LIST|at|x+5}}      — element at computed index
+# ---------------------------------------------------------------------------
+function process_at(base_value, func_arg,    idx_str, idx, n, items) {
+    idx_str = func_arg
+    gsub(/^[ \t]+|[ \t]+$/, "", idx_str)
+    if (idx_str ~ /^[0-9]+$/) {
+        idx = int(idx_str)
+    } else if (idx_str in ENVIRON && ENVIRON[idx_str] ~ /^-?[0-9]+$/) {
+        idx = int(ENVIRON[idx_str])
+    } else {
+        idx = _eval_expr(_resolve_vars_in_expr(idx_str))
+    }
+    n = split(base_value, items, /\|/)
+    idx = idx + 1
+    if (idx >= 1 && idx <= n) {
+        gsub(/^[ \t]+|[ \t]+$/, "", items[idx])
+        return items[idx]
+    }
+    return ""
+}
+
+# ---------------------------------------------------------------------------
+# resolve: indirect variable reference
+#   {{rnd|resolve|MAP_}}  — returns value of ENVIRON["MAP_" .. base_value]
+#   {{X|resolve}}          — returns value of ENVIRON[base_value]
+# ---------------------------------------------------------------------------
+function process_resolve(base_value, func_arg,    var_name) {
+    if (func_arg != "") {
+        var_name = func_arg base_value
+    } else {
+        var_name = base_value
+    }
+    if (var_name in ENVIRON) {
+        return ENVIRON[var_name]
+    }
+    return ""
+}
+
 # Variable function dispatch table
 # Maps function names to handler function names
 # Functions are categorized by their signature:
@@ -142,6 +296,9 @@ BEGIN {
     VAR_FUNC_DISPATCH["replace"] = "process_replace"
     VAR_FUNC_DISPATCH["remove_suffix"] = "process_remove_suffix"
     VAR_FUNC_DISPATCH["trim"] = "process_trim"
+    VAR_FUNC_DISPATCH["math"] = "process_math"
+    VAR_FUNC_DISPATCH["at"] = "process_at"
+    VAR_FUNC_DISPATCH["resolve"] = "process_resolve"
     # C-specific functions (normalize_name, escape_name, etc.) are registered by mocking extensions
 }
 

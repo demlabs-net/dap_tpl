@@ -6,6 +6,7 @@
 @include "core/token_tree.awk"
 @include "core/variable_context.awk"
 @include "core/construct_registry.awk"
+@include "core/renderer.awk"
 @include "core/debug.awk"
 
 # Evaluate a token tree recursively
@@ -42,68 +43,15 @@ function evaluate_token(token_id,    token_type, evaluated_id, child_count, i, c
         return token_id
     }
     
-    # Get evaluator function from registry
     func_name = get_evaluator_function(token_type)
-    
     if (func_name == "") {
-        # No evaluator registered - return token as-is
-        if (token_type == "set" && DEBUG_ENABLED) {
-            printf "DEBUG evaluate_token: set token_id=%d has no evaluator registered\n", token_id > "/dev/stderr"
-        }
         return token_id
     }
-    
-    # Debug output for var tokens
-    if (token_type == "var") {
-        var_name = get_token_metadata(token_id, "var_name")
-        log_debug("evaluate_token: BEFORE evaluate_var, token_id=%d var_name=[%s]", token_id, var_name)
-    }
-    
-    # Debug output for set tokens
-    if (token_type == "set" && DEBUG_ENABLED) {
-        condition = get_token_metadata(token_id, "condition")
-        printf "DEBUG evaluate_token: BEFORE dispatch_evaluator for set, token_id=%d func_name=[%s] condition=[%s] child_count=%d\n", token_id, func_name, condition, get_children_count(token_id) > "/dev/stderr"
-    }
-    
-    # Debug output for if tokens - ALWAYS print for ALL if tokens
-    if (token_type == "if") {
-        condition = get_token_metadata(token_id, "condition")
-        log_debug("evaluate_token: BEFORE dispatch_evaluator, token_id=%d child_count=%d condition=[%s]", token_id, get_children_count(token_id), condition)
-    }
-    
-    # Special handling for include token (needs depth parameter)
+
     if (token_type == "include") {
         evaluated_id = dispatch_2(func_name, token_id, 0)
     } else {
-        # Call evaluator function via dispatch
         evaluated_id = dispatch_1(func_name, token_id)
-    }
-    
-    # Debug output for set tokens
-    if (token_type == "set" && DEBUG_ENABLED) {
-        printf "DEBUG evaluate_token: AFTER dispatch_evaluator for set, evaluated_id=%d type=%s children=%d\n", evaluated_id, get_token_type(evaluated_id), get_children_count(evaluated_id) > "/dev/stderr"
-    }
-    
-    # Debug output for var tokens
-    if (token_type == "var") {
-        var_name = get_token_metadata(token_id, "var_name")
-        if (evaluated_id > 0) {
-            evaluated_value = get_token_value(evaluated_id)
-            log_debug("evaluate_token: AFTER evaluate_var, evaluated_id=%d evaluated_type=%s var_name=[%s] evaluated_value=[%s]", evaluated_id, get_token_type(evaluated_id), var_name, evaluated_value)
-        } else {
-            log_debug("evaluate_token: AFTER evaluate_var, evaluated_id=%d evaluated_type=%s var_name=[%s]", evaluated_id, get_token_type(evaluated_id), var_name)
-        }
-    }
-    
-    # Debug output for if tokens - ALWAYS print for ALL if tokens
-    if (token_type == "if") {
-        condition = get_token_metadata(token_id, "condition")
-        log_debug("evaluate_token: AFTER dispatch_evaluator, evaluated_id=%d evaluated_type=%s evaluated_children=%d", evaluated_id, get_token_type(evaluated_id), get_children_count(evaluated_id))
-        log_debug("evaluate_token: original token_id=%d child_count=%d condition=[%s]", token_id, get_children_count(token_id), condition)
-        if (condition ~ /type.*==.*void/) {
-            log_debug("evaluate_token: AFTER dispatch_evaluator, evaluated_id=%d evaluated_type=%s evaluated_children=%d", evaluated_id, get_token_type(evaluated_id), get_children_count(evaluated_id))
-            log_debug("evaluate_token: original token_id=%d child_count=%d", token_id, get_children_count(token_id))
-        }
     }
     
     if (evaluated_id == 0) {
@@ -183,61 +131,47 @@ function evaluate_token(token_id,    token_type, evaluated_id, child_count, i, c
         return evaluated_id
     }
     
+    # Block-set: {{#set VAR}}content{{/set}} — check BEFORE children evaluation
+    if (evaluated_id == token_id && token_type == "set") {
+        condition = get_token_metadata(token_id, "condition")
+        block_set_children = get_children_count(token_id)
+        if (condition !~ /=/ && block_set_children > 0) {
+            _bs_var = condition
+            gsub(/^[ \t]+|[ \t]+$/, "", _bs_var)
+            if (_bs_var != "") {
+                _bs_rendered = ""
+                for (_bs_i = 1; _bs_i <= block_set_children; _bs_i++) {
+                    _bs_child = get_child(token_id, _bs_i)
+                    _bs_eval = evaluate_token(_bs_child)
+                    _bs_rendered = _bs_rendered render_token(_bs_eval)
+                }
+                gsub(/^[ \t\n]+|[ \t\n]+$/, "", _bs_rendered)
+                set_var(_bs_var, _bs_rendered)
+                return create_token("root", "")
+            }
+        }
+        return evaluated_id
+    }
+
     # Evaluate children recursively and rebuild children list
     child_count = get_children_count(evaluated_id)
-    
-    # Special case: text tokens without children should be returned as-is
-    # This prevents loss of content for tokens like those returned by evaluate_include
+
     if (get_token_type(evaluated_id) == "text" && child_count == 0) {
         return evaluated_id
     }
-    
+
     new_child_count = 0
     delete new_children
-    
+
     for (i = 1; i <= child_count; i++) {
         child_id = get_child(evaluated_id, i)
-        child_type_before = get_token_type(child_id)
-        
-        # Debug output
-        if (child_type_before == "if") {
-            child_condition = get_token_metadata(child_id, "condition")
-            if (child_condition ~ /type.*==.*void/) {
-                log_debug("evaluating child if token with condition=[%s]", child_condition)
-            }
-        }
-        
         evaluated_child_id = evaluate_token(child_id)
-        
-        # Debug output
-        if (child_type_before == "if") {
-            child_condition = get_token_metadata(child_id, "condition")
-            if (child_condition ~ /type.*==.*void/) {
-                log_debug("evaluated child if token, result type=%s children=%d", get_token_type(evaluated_child_id), get_children_count(evaluated_child_id))
-            }
-        }
-        
         if (evaluated_child_id > 0) {
             new_child_count++
             new_children[new_child_count] = evaluated_child_id
         }
     }
-    
-    # Special case: if evaluated_id is the same as token_id (evaluator returned original token)
-    # and token_type is "set", this means evaluate_set returned token_id instead of root token
-    # This happens when condition doesn't match VAR=value pattern or condition is empty
-    # In this case, we should still return the token as-is, but log a warning
-    if (evaluated_id == token_id && token_type == "set") {
-        # evaluate_set returned original token - this is OK if condition is invalid
-        # But we should check if it should have returned root token
-        if (DEBUG_ENABLED) {
-            condition = get_token_metadata(token_id, "condition")
-            printf "DEBUG evaluate_token: set token_id=%d returned itself (evaluated_id==token_id), condition=[%s]\n", token_id, condition > "/dev/stderr"
-        }
-        return evaluated_id
-    }
-    
-    # If children were evaluated, create new token with evaluated children
+
     if (new_child_count != child_count || child_count > 0) {
         # Create new token of same type with evaluated children
         new_token_id = create_token(get_token_type(evaluated_id), get_token_value(evaluated_id))
