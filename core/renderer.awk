@@ -21,30 +21,7 @@ function render_token(token_id,    token_type, renderer_func, result, child_coun
     renderer_func = get_renderer_function(token_type)
     
     if (renderer_func != "") {
-        # Use registered renderer function via indirect call
-        result = @renderer_func(token_id)
-        if (token_type == "var") {
-            var_name = get_token_metadata(token_id, "var_name")
-            log_debug("render_token: token_id=%d type=var renderer=[%s] var_name=[%s] result=[%s]", token_id, renderer_func, var_name, result)
-            # Debug if var token renders empty but variable exists
-            if (length(result) == 0 && var_name != "") {
-                var_value = get_var(var_name)
-                if (var_value != "") {
-                    printf "DEBUG render_token: var token_id=%d var_name=[%s] rendered empty but get_var=[%s]\n", token_id, var_name, var_value > "/dev/stderr"
-                }
-            }
-        }
-        if (token_type == "text") {
-            value = get_token_value(token_id)
-            if (value ~ /VOID_BRANCH|NON_VOID_BRANCH|VOID:|NON-VOID/) {
-                log_debug("render_token: token_id=%d type=text renderer=[%s] value=[%s] result=[%s]", token_id, renderer_func, value, result)
-            }
-            # Debug if text token renders empty but has content
-            if (length(result) == 0 && length(value) > 0) {
-                printf "DEBUG render_token: text token_id=%d value=[%s] value_length=%d rendered empty\n", token_id, value, length(value) > "/dev/stderr"
-            }
-        }
-        return result
+        return @renderer_func(token_id)
     }
     
     # No renderer registered - default behavior: render children
