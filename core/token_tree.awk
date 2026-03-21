@@ -13,8 +13,9 @@
 #   tokens[token_id SUBSEP "children" SUBSEP 1..N] - child token IDs
 
 BEGIN {
-    # Global token counter
     next_token_id = 1
+    # Known metadata fields for O(1) clone — add new fields here if any are introduced
+    _META_FIELD_COUNT = split("condition var_name start_line end_line has_else", _META_FIELDS, " ")
 }
 
 # Create a new token and return its ID
@@ -87,55 +88,34 @@ function get_child(token_id, child_idx) {
 # Parameters:
 #   token_id - root token ID to clone
 # Returns: new root token ID
-function clone_subtree(token_id,    new_id, type, value, metadata, child_count, i, child_id, new_child_id, key, condition) {
+function clone_subtree(token_id,    new_id, type, value, child_count, i, child_id, new_child_id, pfx, k) {
     if (!((token_id SUBSEP "type") in tokens)) {
         return 0
     }
-    
+
     type = tokens[token_id SUBSEP "type"]
     value = tokens[token_id SUBSEP "value"]
-    
-    # Copy metadata
-    delete metadata
-    for (key in tokens) {
-        # Extract metadata keys for this token_id
-        if (index(key, token_id SUBSEP "metadata" SUBSEP) == 1) {
-            # Extract the field name after "metadata" SUBSEP
-            field = substr(key, length(token_id SUBSEP "metadata" SUBSEP) + 1)
-            metadata[field] = tokens[key]
-        }
+
+    # Fast path: create token inline and copy known metadata fields directly.
+    # O(1) per clone instead of O(total_tokens) — critical for large templates.
+    new_id = next_token_id++
+    tokens[new_id SUBSEP "type"] = type
+    tokens[new_id SUBSEP "value"] = value
+    pfx = token_id SUBSEP "metadata" SUBSEP
+    for (k = 1; k <= _META_FIELD_COUNT; k++) {
+        if ((pfx _META_FIELDS[k]) in tokens)
+            tokens[new_id SUBSEP "metadata" SUBSEP _META_FIELDS[k]] = tokens[pfx _META_FIELDS[k]]
     }
-    
-    # Create new token
-    new_id = create_token(type, value, metadata)
-    
-    # Clone children recursively
+
     child_count = get_children_count(token_id)
-    
-    # Debug output for if tokens with type == 'void' condition
-    if (type == "if") {
-        condition = tokens[token_id SUBSEP "metadata" SUBSEP "condition"]
-        if (condition ~ /type.*==.*void/) {
-            log_debug("clone_subtree: BEFORE clone, token_id=%d type=%s children=%d condition=[%s]\n", token_id, type, child_count, condition)
-        }
-    }
-    
     for (i = 1; i <= child_count; i++) {
-        child_id = get_child(token_id, i)
+        child_id = tokens[token_id SUBSEP "children" SUBSEP i]
         new_child_id = clone_subtree(child_id)
         if (new_child_id > 0) {
             add_child(new_id, new_child_id)
         }
     }
-    
-    # Debug output for if tokens with type == 'void' condition
-    if (type == "if") {
-        condition = metadata["condition"]
-        if (condition ~ /type.*==.*void/) {
-            log_debug("clone_subtree: AFTER clone, new_id=%d type=%s children=%d condition=[%s]\n", new_id, type, get_children_count(new_id), condition)
-        }
-    }
-    
+
     return new_id
 }
 
