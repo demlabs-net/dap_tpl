@@ -28,7 +28,7 @@ TESTS_FAILED=0
 
 run_tpl() {
     local tpl="$1"
-    cd "$DAP_TPL_DIR" && DEBUG_ENABLED=0 "$AWK_CMD" -f "$COMPILED_ENGINE" "$tpl" 2>/dev/null
+    cd "$DAP_TPL_DIR" && DEBUG_ENABLED=0 "$AWK_CMD" $AWK_EXTRA_ARGS -f "$COMPILED_ENGINE" "$tpl" 2>/dev/null
 }
 
 normalize() {

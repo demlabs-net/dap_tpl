@@ -38,7 +38,7 @@ run_awk_test() {
     
     local engine=$(ensure_engine)
     
-    (cd "$DAP_TPL_DIR" && DEBUG_ENABLED=0 "$AWK_CMD" -f "$test_file" <<< "" > "$temp_stdout" 2>"$temp_stderr") || exit_code=$?
+    (cd "$DAP_TPL_DIR" && DEBUG_ENABLED=0 "$AWK_CMD" $AWK_EXTRA_ARGS -f "$test_file" <<< "" > "$temp_stdout" 2>"$temp_stderr") || exit_code=$?
     
     cat "$temp_stdout"
     cat "$temp_stderr" >&2
@@ -52,5 +52,5 @@ process_template() {
     local template="$1"
     local engine=$(ensure_engine)
     
-    echo "$template" | "$AWK_CMD" -f "$engine" 2>&1
+    echo "$template" | "$AWK_CMD" $AWK_EXTRA_ARGS -f "$engine" 2>&1
 }
