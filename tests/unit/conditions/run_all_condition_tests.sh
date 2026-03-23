@@ -44,7 +44,7 @@ run_awk_test() {
     fi
     
     # Run preprocessed test
-    if "$AWK_CMD" -f "$preprocessed" > /dev/null 2>&1; then
+    if "$AWK_CMD" $AWK_EXTRA_ARGS -f "$preprocessed" > /dev/null 2>&1; then
         echo -e "${GREEN}✓${NC} $test_name passed"
         PASSED_TESTS=$((PASSED_TESTS + 1))
         rm -f "$preprocessed"
@@ -53,7 +53,7 @@ run_awk_test() {
         FAILED_TESTS=$((FAILED_TESTS + 1))
         # Run again to show errors
         echo "Errors:"
-        "$AWK_CMD" -f "$preprocessed" || true
+        "$AWK_CMD" $AWK_EXTRA_ARGS -f "$preprocessed" || true
         rm -f "$preprocessed"
     fi
     TOTAL_TESTS=$((TOTAL_TESTS + 1))
