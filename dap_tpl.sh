@@ -6,6 +6,15 @@ set -e
 AWK_CMD="awk"
 export AWK_CMD
 
+# Detect awk implementation and apply necessary workarounds.
+# mawk has a default sprintf buffer limit of 8192 bytes which is too small
+# for large template output. Use -W sprintf=N to increase it.
+AWK_EXTRA_ARGS=""
+if awk -W version 2>/dev/null | grep -q 'mawk'; then
+    AWK_EXTRA_ARGS="-W sprintf=131072"
+fi
+export AWK_EXTRA_ARGS
+
 export DAP_AWK_PID="$$"
 export DAP_AWK_SYSTIME="$(date +%s)"
 
@@ -127,9 +136,9 @@ replace_template_placeholders() {
 
     local result=0
     if [ -n "$output_file" ]; then
-        DEBUG_ENABLED=0 "$AWK_CMD" -f "$ENGINE" "$template_file" > "$output_file" || result=$?
+        DEBUG_ENABLED=0 "$AWK_CMD" $AWK_EXTRA_ARGS -f "$ENGINE" "$template_file" > "$output_file" || result=$?
     else
-        DEBUG_ENABLED=0 "$AWK_CMD" -f "$ENGINE" "$template_file" || result=$?
+        DEBUG_ENABLED=0 "$AWK_CMD" $AWK_EXTRA_ARGS -f "$ENGINE" "$template_file" || result=$?
     fi
 
     return $result

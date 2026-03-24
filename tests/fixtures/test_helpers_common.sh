@@ -70,7 +70,7 @@ run_preprocessed_awk_test() {
     export DAP_AWK_PID="$$"
     export DAP_AWK_SYSTIME="$(date +%s)"
     
-    if result=$(cd "$dap_tpl_dir" && "$AWK_CMD" -f "$temp5" <<< "" 2>&1); then
+    if result=$(cd "$dap_tpl_dir" && "$AWK_CMD" $AWK_EXTRA_ARGS -f "$temp5" <<< "" 2>&1); then
         exit_code=0
     else
         exit_code=$?

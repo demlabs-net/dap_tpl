@@ -28,8 +28,6 @@ BEGIN {
         
         # Render
         output_text = render_tree(evaluated_token_id)
-        
-        # Output result
         print output_text
     } else {
         # Read from stdin
@@ -64,8 +62,6 @@ BEGIN {
         
         # Render
         output_text = render_tree(evaluated_token_id)
-        
-        # Output result
         print output_text
     }
 }
