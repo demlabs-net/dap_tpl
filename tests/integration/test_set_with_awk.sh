@@ -43,7 +43,7 @@ echo "Using engine: ${ENGINE_PATH}"
 
 # Run template through engine with proper AWKPATH (check both stdout and stderr separately)
 (cd "${DAP_TPL_DIR}" && \
- env AWKPATH="${DAP_TPL_DIR}" DEBUG_ENABLED=0 "$AWK_CMD" -f "${ENGINE_PATH}" "${TEST_TEMPLATE}" > "${TEST_OUTPUT}" 2>"${TEST_OUTPUT}.stderr") || {
+ env AWKPATH="${DAP_TPL_DIR}" DEBUG_ENABLED=0 "$AWK_CMD" $AWK_EXTRA_ARGS -f "${ENGINE_PATH}" "${TEST_TEMPLATE}" > "${TEST_OUTPUT}" 2>"${TEST_OUTPUT}.stderr") || {
     echo "FAIL: Template processing failed"
     cat "${TEST_OUTPUT}"
     if [ -s "${TEST_OUTPUT}.stderr" ]; then

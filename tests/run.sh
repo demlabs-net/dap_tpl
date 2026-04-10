@@ -69,7 +69,7 @@ run_awk_test() {
     
     # Run preprocessed test
     local result
-    if result=$(cd "$DAP_TPL_DIR" && "$AWK_CMD" -f "$preprocessed" <<< "" 2>&1); then
+    if result=$(cd "$DAP_TPL_DIR" && "$AWK_CMD" $AWK_EXTRA_ARGS -f "$preprocessed" <<< "" 2>&1); then
         rm -f "$preprocessed"
         if echo "$result" | grep -q "^PASS$"; then
             echo "PASS"

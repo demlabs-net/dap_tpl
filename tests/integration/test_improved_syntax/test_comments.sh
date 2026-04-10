@@ -39,7 +39,7 @@ Output line 2
 Output line 3
 EOF
 
-OUTPUT=$(cd "$DAP_TPL_DIR" && "$AWK_CMD" -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>&1)
+OUTPUT=$(cd "$DAP_TPL_DIR" && "$AWK_CMD" $AWK_EXTRA_ARGS -f "$COMPILED_ENGINE" "$TEST_TEMPLATE" 2>&1)
 EXPECTED="Output line 1
 Output line 2
 Output line 3"
@@ -71,7 +71,7 @@ And contain {{VAR}} markers
 Output line 2
 EOF
 
-OUTPUT2=$(cd "$DAP_TPL_DIR" && "$AWK_CMD" -f "$COMPILED_ENGINE" "$TEST_TEMPLATE2" 2>&1)
+OUTPUT2=$(cd "$DAP_TPL_DIR" && "$AWK_CMD" $AWK_EXTRA_ARGS -f "$COMPILED_ENGINE" "$TEST_TEMPLATE2" 2>&1)
 EXPECTED2="Output line 1
 Output line 2"
 

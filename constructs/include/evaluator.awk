@@ -116,37 +116,70 @@ function evaluate_include(token_id, depth,    file_path, condition, metadata, fi
         gsub(/'/, "'\\''", scripts_dir_escaped)
         
         awk_cmd = (ENVIRON["AWK_CMD"] != "") ? ENVIRON["AWK_CMD"] : "awk"
-        cmd = "(. '" env_file "' && AWKPATH='" scripts_dir_escaped "' DAP_TPL_ENGINE_PATH='" engine_file_escaped "' " awk_cmd " -f '" engine_file_escaped "' '" file_path_escaped "') 2>/dev/null"
+        awk_extra = ENVIRON["AWK_EXTRA_ARGS"]
+        cmd = "(. '" env_file "' && AWKPATH='" scripts_dir_escaped "' DAP_TPL_ENGINE_PATH='" engine_file_escaped "' " awk_cmd " " awk_extra " -f '" engine_file_escaped "' '" file_path_escaped "') 2>/dev/null"
         
-        processed_content = ""
+        delete metadata
+        _inc_root = create_token("root", "", metadata)
+        _inc_chunk = ""
+        _inc_chunk_lines = 0
+        _inc_need_nl = 0
         while ((cmd | getline line) > 0) {
-            if (processed_content != "") {
-                processed_content = processed_content "\n"
+            if (_inc_chunk != "" || _inc_need_nl) {
+                _inc_chunk = _inc_chunk "\n"
+                _inc_need_nl = 0
             }
-            processed_content = processed_content line
+            _inc_chunk = _inc_chunk line
+            _inc_chunk_lines++
+            if (_inc_chunk_lines >= 40) {
+                delete metadata
+                _inc_tid = create_token("text", _inc_chunk, metadata)
+                add_child(_inc_root, _inc_tid)
+                _inc_chunk = ""
+                _inc_chunk_lines = 0
+                _inc_need_nl = 1
+            }
         }
         close(cmd)
+        if (_inc_chunk != "") {
+            delete metadata
+            _inc_tid = create_token("text", _inc_chunk, metadata)
+            add_child(_inc_root, _inc_tid)
+        }
         
         system("rm -f '" env_file "'")
         
-        delete metadata
-        text_token_id = create_token("text", processed_content, metadata)
-        
-        return text_token_id
+        return _inc_root
     } else {
-        file_content = ""
+        delete metadata
+        _inc_root = create_token("root", "", metadata)
+        _inc_chunk = ""
+        _inc_chunk_lines = 0
+        _inc_need_nl = 0
         while ((getline line < file_path) > 0) {
-            if (file_content != "") {
-                file_content = file_content "\n"
+            if (_inc_chunk != "" || _inc_need_nl) {
+                _inc_chunk = _inc_chunk "\n"
+                _inc_need_nl = 0
             }
-            file_content = file_content line
+            _inc_chunk = _inc_chunk line
+            _inc_chunk_lines++
+            if (_inc_chunk_lines >= 40) {
+                delete metadata
+                _inc_tid = create_token("text", _inc_chunk, metadata)
+                add_child(_inc_root, _inc_tid)
+                _inc_chunk = ""
+                _inc_chunk_lines = 0
+                _inc_need_nl = 1
+            }
         }
         close(file_path)
+        if (_inc_chunk != "") {
+            delete metadata
+            _inc_tid = create_token("text", _inc_chunk, metadata)
+            add_child(_inc_root, _inc_tid)
+        }
         
-        delete metadata
-        text_token_id = create_token("text", file_content, metadata)
-        
-        return text_token_id
+        return _inc_root
     }
 }
 
